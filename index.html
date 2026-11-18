@@ -1,0 +1,2870 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BotPult — Конструктор автоворонок</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .board-grid {
+      background-color: #090d16;
+      background-image: radial-gradient(#1f2937 1.25px, transparent 1.25px);
+      background-size: 24px 24px;
+      touch-action: none;
+    }
+    .tg-html a { color: #93c5fd; text-decoration: underline; }
+    .tg-html code { background: rgba(0,0,0,0.35); padding: 1px 4px; border-radius: 4px; font-family: monospace; }
+    .tg-html tg-spoiler { background: #374151; color: transparent; border-radius: 4px; padding: 0 3px; cursor: pointer; transition: color 0.2s; }
+    .tg-html tg-spoiler:hover { color: inherit; }
+    .wire-group:hover .wire-visible { stroke: #ef4444 !important; stroke-width: 3.5; }
+    .wire-group:hover .wire-del-badge { opacity: 1; }
+  </style>
+</head>
+<body class="fixed inset-0 bg-gray-950 text-gray-100 flex flex-col overflow-hidden font-sans">
+  <!-- ЭКРАН ЗАГРУЗКИ -->
+  <div id="boot-loader" class="fixed inset-0 bg-gray-950 z-50 flex flex-col items-center justify-center gap-3">
+    <div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+    <div class="text-xs tracking-widest uppercase text-gray-400 font-medium">Loading...</div>
+  </div>
+  <!-- ЭКРАН АКТИВАЦИИ ЛИЦЕНЗИИ (ПОКАЗЫВАЕТСЯ ОДИН РАЗ ПРИ ПЕРВОЙ УСТАНОВКЕ) -->
+  <div id="activation-screen" class="fixed inset-0 bg-gray-950 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-sm w-full p-5 sm:p-6 shadow-2xl my-auto space-y-5">
+      <div class="text-center space-y-1.5">
+        <div class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 mx-auto">
+          <svg class="w-6 h-6 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+        </div>
+        <div class="flex items-center justify-center gap-2">
+          <h1 class="text-lg font-bold text-white tracking-tight">BotPult</h1>
+          <span id="act-version-pill" class="text-[10px] bg-gray-800 border border-gray-700 text-gray-300 px-2 py-0.5 rounded-full font-mono">v1.0.0</span>
+        </div>
+        <p class="text-xs text-gray-400">Активация копии конструктора</p>
+      </div>
+      <form onsubmit="submitActivation(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Лицензионный ключ</label>
+          <input type="text" id="act-key" required autocomplete="off" spellcheck="false" placeholder="BP-XXXX-XXXX-XXXX" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm font-mono uppercase text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500">
+        </div>
+        <div id="act-error" class="hidden text-xs text-red-400 bg-red-950/50 border border-red-900/60 rounded-lg p-2.5"></div>
+        <button type="submit" id="act-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-sm font-medium transition">Активировать BotPult</button>
+      </form>
+      <div class="bg-gray-950/80 border border-gray-800/80 rounded-xl p-3 text-[11px] text-gray-400 leading-relaxed">
+        🔒 Ключ проверяется <b class="text-gray-200">один раз</b> при установке. После активации ваша копия работает автономно и бессрочно.
+      </div>
+    </div>
+  </div>
+  <!-- ЭКРАН АВТОРИЗАЦИИ И ВОССТАНОВЛЕНИЯ -->
+  <div id="login-screen" class="fixed inset-0 bg-gray-950 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-sm w-full p-5 sm:p-6 shadow-2xl my-auto">
+      <div id="login-view" class="space-y-5">
+        <div class="text-center space-y-1.5">
+          <div class="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 mx-auto">
+            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M21.9 4.6c.2-.8-.5-1.5-1.3-1.2L2.8 10.3c-.9.3-.8 1.6.1 1.9l4.6 1.4 1.7 5.4c.2.7 1.1.9 1.6.4l2.6-2.5 4.8 3.5c.7.5 1.7.1 1.9-.7l1.8-15.1zM8.5 13.1l9.2-5.8-7.4 6.9-.3 3.2-1.5-4.3z"/>
+            </svg>
+          </div>
+          <h1 class="text-lg font-bold text-white tracking-tight">BotPult</h1>
+          <p class="text-xs text-gray-400">Введите логин и пароль администратора</p>
+        </div>
+        <form onsubmit="submitLogin(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Логин</label>
+            <input type="text" id="login-user" required autocomplete="username" placeholder="admin" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Пароль</label>
+            <div class="relative">
+              <input type="password" id="login-pass" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-gray-800 border border-gray-700 rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+              <button type="button" onclick="togglePassVisibility('login-pass')" title="Показать / скрыть пароль" class="absolute inset-y-0 right-2.5 flex items-center text-gray-400 hover:text-white text-sm">👁️</button>
+            </div>
+          </div>
+          <div id="login-error" class="hidden text-xs text-red-400 bg-red-950/50 border border-red-900/60 rounded-lg p-2.5"></div>
+          <button type="submit" id="login-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-sm font-medium transition">Войти</button>
+        </form>
+        <div class="text-center pt-1">
+          <button type="button" onclick="toggleRecoveryView(true)" class="text-xs text-gray-400 hover:text-indigo-400 transition">Забыли пароль? Восстановить через токен бота</button>
+        </div>
+      </div>
+      <div id="recover-view" class="hidden space-y-4">
+        <div class="text-center space-y-1">
+          <div class="text-2xl">🔑</div>
+          <h1 class="text-lg font-bold text-white">Сброс пароля</h1>
+          <p class="text-xs text-gray-400">Вставьте токен вашего бота из @BotFather, чтобы задать новый логин и пароль</p>
+        </div>
+        <form onsubmit="submitRecovery(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Токен Telegram-бота</label>
+            <input type="text" id="rec-token" required placeholder="1234567890:AAF..." class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Новый логин</label>
+            <input type="text" id="rec-login" required value="admin" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1 gap-2">
+              <label class="text-xs text-gray-400">Новый пароль (от 4 знаков)</label>
+              <div class="flex gap-2 shrink-0">
+                <button type="button" onclick="generateStrongPassword('rec-pass')" class="text-[11px] text-indigo-400 hover:text-indigo-300">🎲 Сгенер.</button>
+                <button type="button" onclick="copyInputValue('rec-pass', this)" class="text-[11px] text-emerald-400 hover:text-emerald-300">📋 Копир.</button>
+              </div>
+            </div>
+            <div class="relative">
+              <input type="password" id="rec-pass" required placeholder="Придумайте или сгенерируйте..." class="w-full bg-gray-800 border border-gray-700 rounded-xl pl-3.5 pr-10 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              <button type="button" onclick="togglePassVisibility('rec-pass')" title="Показать / скрыть пароль" class="absolute inset-y-0 right-2.5 flex items-center text-gray-400 hover:text-white text-sm">👁️</button>
+            </div>
+          </div>
+          <div id="rec-error" class="hidden text-xs text-red-400 bg-red-950/50 border border-red-900/60 rounded-lg p-2.5"></div>
+          <button type="submit" id="rec-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-sm font-medium transition">Сбросить и войти</button>
+        </form>
+        <div class="text-center pt-1">
+          <button type="button" onclick="toggleRecoveryView(false)" class="text-xs text-gray-400 hover:text-white transition">← Вернуться ко входу</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ПЛАШКА НАПОМИНАНИЯ О СТАНДАРТНОМ ПАРОЛЕ -->
+  <div id="default-pass-banner" class="hidden bg-amber-500/15 border-b border-amber-500/40 px-3 sm:px-4 py-2 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+    <span>⚠️ <b>Внимание:</b> стандартный пароль (<code class="bg-black/30 px-1.5 py-0.5 rounded">05051983</code>). Смените его в настройках.</span>
+    <button onclick="openSettingsModal()" class="bg-amber-500/25 hover:bg-amber-500/40 text-amber-100 px-2.5 py-1 rounded-md font-medium shrink-0 transition">Сменить пароль</button>
+  </div>
+  <!-- ОСНОВНОЙ РАБОЧИЙ ЭКРАН -->
+  <div id="app-shell" class="hidden flex-1 min-h-0 overflow-hidden relative">
+    <!-- ЛЕВАЯ ПАНЕЛЬ -->
+    <div id="sidebar-pane" class="w-full md:w-80 bg-gray-900 md:border-r border-gray-800 flex flex-col shrink-0 h-full min-h-0">
+      <div class="p-3.5 border-b border-gray-800 space-y-2.5 shrink-0">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 class="font-bold text-base text-white tracking-tight flex items-center gap-2">
+              <svg class="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21.9 4.6c.2-.8-.5-1.5-1.3-1.2L2.8 10.3c-.9.3-.8 1.6.1 1.9l4.6 1.4 1.7 5.4c.2.7 1.1.9 1.6.4l2.6-2.5 4.8 3.5c.7.5 1.7.1 1.9-.7l1.8-15.1zM8.5 13.1l9.2-5.8-7.4 6.9-.3 3.2-1.5-4.3z"/>
+              </svg>
+              <span>BotPult</span>
+            </h1>
+            <p class="text-xs text-gray-400" id="users-count">Загрузка...</p>
+          </div>
+          <button onclick="openBroadcastModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-2 rounded-lg font-medium transition">📢 Рассылка</button>
+        </div>
+        <div class="space-y-1.5">
+          <button onclick="openFunnelModal()" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-700/50 text-xs py-2.5 md:py-2 px-3 rounded-lg font-medium transition">🔄 Конструктор воронки</button>
+          <button onclick="openConsultModal()" class="w-full bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-700/50 text-xs py-2.5 md:py-2 px-3 rounded-lg font-medium transition">📅 Консультации и запись</button>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button onclick="openDeeplinkModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs py-2 md:py-1.5 px-2 rounded-lg transition">🔗 Ссылки (UTM)</button>
+            <button onclick="openChannelModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs py-2 md:py-1.5 px-2 rounded-lg transition">🔒 Подписка</button>
+            <button onclick="exportCsv()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs py-2 md:py-1.5 px-2 rounded-lg transition">📥 База (CSV)</button>
+            <button onclick="openSettingsModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs py-2 md:py-1.5 px-2 rounded-lg transition">⚙️ Настройки</button>
+          </div>
+        </div>
+        <input type="text" id="user-search" oninput="renderUsersList()" placeholder="Поиск подписчика..." class="w-full bg-gray-950 border border-gray-800 text-xs rounded-lg px-3 py-2 md:py-1.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+      </div>
+      <div id="users-list" class="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-800/50"></div>
+      <div class="p-2.5 border-t border-gray-800 space-y-1.5 text-[11px] text-gray-500 shrink-0">
+        <div class="flex justify-between items-center gap-2">
+          <span id="connected-bot-badge" class="truncate">Бот: проверка...</span>
+          <button onclick="logout()" class="text-gray-400 hover:text-red-400 transition shrink-0">Выйти 🚪</button>
+        </div>
+        <div class="flex justify-between items-center gap-2 text-[10px] text-gray-600">
+          <span id="app-version-label" class="shrink-0">BotPult v1.0.0</span>
+          <span id="app-update-badge" class="hidden truncate"></span>
+        </div>
+      </div>
+    </div>
+    <!-- ПРАВАЯ ПАНЕЛЬ: ДИАЛОГ -->
+    <div id="chat-pane" class="hidden md:flex flex-1 flex-col bg-gray-950 min-w-0 min-h-0 h-full w-full">
+      <div id="chat-header" class="min-h-[3.5rem] border-b border-gray-800 px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 bg-gray-900/50 shrink-0">
+        <div class="text-gray-400 text-sm">Выберите подписчика слева, чтобы открыть диалог</div>
+      </div>
+      <div id="messages-box" class="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-6 space-y-3 sm:space-y-4"></div>
+      <div id="input-area" class="p-2.5 sm:p-3 bg-gray-900 border-t border-gray-800 hidden space-y-2 shrink-0">
+        <div id="chat-att-drawer" class="hidden bg-gray-950/80 border border-gray-800 rounded-xl p-2 space-y-1.5">
+          <div id="chat-attachments-list" class="space-y-1.5 max-h-28 overflow-y-auto"></div>
+          <button type="button" onclick="addAttachmentRow('chat-attachments-list')" class="text-[11px] text-indigo-400 hover:text-indigo-300">+ Прикрепить ещё файл</button>
+        </div>
+        <div id="chat-fmt-drawer" class="hidden flex flex-wrap gap-1 text-xs" data-toolbar="message-input"></div>
+        <div class="flex gap-1.5 sm:gap-2 items-end">
+          <button type="button" onclick="toggleChatDrawer('att')" id="chat-att-toggle" title="Прикрепить файл" class="relative bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 rounded-xl h-10 w-10 flex items-center justify-center shrink-0 transition">
+            📎<span id="chat-att-badge" class="hidden absolute -top-1 -right-1 bg-indigo-600 text-white text-[10px] font-bold px-1 rounded-full">0</span>
+          </button>
+          <button type="button" onclick="toggleChatDrawer('fmt')" id="chat-fmt-toggle" title="Форматирование текста" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-bold rounded-xl h-10 w-10 flex items-center justify-center shrink-0 transition">Aa</button>
+          <textarea id="message-input" rows="1" placeholder="Сообщение..."
+            oninput="autoGrowChatInput(this)"
+            onkeydown="if(event.key === 'Enter' && !event.shiftKey && window.innerWidth >= 768) { event.preventDefault(); sendMessage(); }"
+            class="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none max-h-28"></textarea>
+          <button onclick="sendMessage()" id="send-btn" title="Отправить" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 sm:px-4 rounded-xl text-sm font-medium transition h-10 flex items-center justify-center shrink-0">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- МОДАЛЬНОЕ ОКНО 1: КОНСТРУКТОР ВОРОНКИ -->
+  <div id="funnel-modal" class="fixed inset-0 bg-black/90 hidden flex-col z-40">
+    <div class="bg-gray-900 border-b border-gray-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <h2 class="font-bold text-sm sm:text-base text-white">Воронка</h2>
+        <div class="bg-gray-950 p-1 rounded-lg border border-gray-800 flex text-xs">
+          <button id="mode-board-btn" onclick="setFunnelViewMode('board')" class="px-2.5 sm:px-3 py-1 rounded-md bg-indigo-600 text-white font-medium transition">🗺️ Доска</button>
+          <button id="mode-list-btn" onclick="setFunnelViewMode('list')" class="px-2.5 sm:px-3 py-1 rounded-md text-gray-400 hover:text-white transition">📋 Список</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 sm:gap-2 ml-auto">
+        <div id="zoom-controls" class="flex items-center gap-1 bg-gray-800 rounded-lg px-2 py-1 text-xs border border-gray-700">
+          <button onclick="changeBoardZoom(-0.1)" class="px-1.5 py-0.5 hover:text-indigo-400 font-bold">−</button>
+          <span id="zoom-label" class="w-9 text-center text-[11px]">100%</span>
+          <button onclick="changeBoardZoom(0.1)" class="px-1.5 py-0.5 hover:text-indigo-400 font-bold">+</button>
+        </div>
+        <button onclick="openStepEditor(null)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg font-medium transition shrink-0">+ Шаг</button>
+        <button onclick="closeModal('funnel-modal')" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg shrink-0">✕</button>
+      </div>
+    </div>
+    <div id="funnel-board-view" class="flex-1 relative overflow-hidden board-grid select-none">
+      <div class="hidden sm:block absolute bottom-3 left-3 z-30 bg-gray-900/90 border border-gray-800 text-[11px] text-gray-400 px-3 py-1.5 rounded-lg pointer-events-none">
+        💡 Тяните стрелки от точек к карточкам • Клик по плашке «Если не нажал» или «Далее» настраивает таймер • Клик по «✕» удаляет связь
+      </div>
+      <div class="sm:hidden absolute bottom-2 left-2 right-2 z-30 bg-gray-900/90 border border-gray-800 text-[10px] text-gray-400 px-2.5 py-1 rounded-lg pointer-events-none text-center">
+        👆 Двигайте поле 1 пальцем • Масштаб 2 пальцами или −/+ • Тяните стрелки от кружков
+      </div>
+      <div id="board-world" class="absolute top-0 left-0 w-[3000px] h-[3000px] origin-top-left">
+        <svg id="board-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+        <div id="board-cards" class="absolute inset-0 z-20 pointer-events-none"></div>
+      </div>
+    </div>
+    <div id="funnel-list-view" class="hidden flex-1 overflow-y-auto p-3 sm:p-6 bg-gray-950">
+      <div id="funnel-list-container" class="max-w-3xl mx-auto space-y-3 pb-10"></div>
+    </div>
+  </div>
+  <!-- МОДАЛЬНОЕ ОКНО: КОНСУЛЬТАЦИИ И ЗАПИСЬ -->
+  <div id="consult-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-2.5 sm:p-4 z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-3xl w-full p-4 sm:p-6 space-y-3.5 max-h-[94dvh] flex flex-col shadow-2xl">
+      <div class="flex justify-between items-start gap-2 shrink-0">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-white">📅 Консультации и запись</h2>
+          <p class="text-[11px] sm:text-xs text-gray-400">Добавьте в любом шаге кнопку типа «📅 Запись на консультацию»</p>
+        </div>
+        <button onclick="closeModal('consult-modal')" class="text-gray-400 hover:text-white text-lg px-1">✕</button>
+      </div>
+      <div class="grid grid-cols-3 gap-1 bg-gray-950 p-1 rounded-xl border border-gray-800 text-[11px] sm:text-xs shrink-0">
+        <button id="cs-tab-btn-bookings" onclick="switchConsultTab('bookings')" class="py-2 px-1.5 sm:px-3 rounded-lg bg-indigo-600 text-white font-medium transition truncate">📋 Записи (<span id="cs-bookings-count">0</span>)</button>
+        <button id="cs-tab-btn-slots" onclick="switchConsultTab('slots')" class="py-2 px-1.5 sm:px-3 rounded-lg text-gray-400 hover:text-white transition truncate">🕒 Окошки (<span id="cs-free-count">0</span>)</button>
+        <button id="cs-tab-btn-settings" onclick="switchConsultTab('settings')" class="py-2 px-1.5 sm:px-3 rounded-lg text-gray-400 hover:text-white transition truncate">⚙️ Настройки</button>
+      </div>
+      <div id="cs-view-bookings" class="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1">
+        <div id="cs-bookings-list" class="space-y-2"></div>
+      </div>
+      <div id="cs-view-slots" class="hidden flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+        <div class="bg-gray-800/50 border border-gray-700/80 rounded-xl p-3.5 sm:p-4 space-y-3">
+          <div class="text-xs font-semibold text-white">➕ Добавить свободные окошки (по МСК)</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">Начальная дата</label>
+              <input type="date" id="cs-start-date" class="w-full bg-gray-900 border border-gray-700 text-xs rounded-lg px-3 py-2 text-white">
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-400 mb-1">На сколько дней сгенерировать</label>
+              <select id="cs-days-count" class="w-full bg-gray-900 border border-gray-700 text-xs rounded-lg px-3 py-2 text-white">
+                <option value="1">1 день (только выбранная дата)</option>
+                <option value="3">3 дня подряд</option>
+                <option value="5">5 дней подряд</option>
+                <option value="7" selected>7 дней (на неделю)</option>
+                <option value="14">14 дней (на 2 недели)</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="flex flex-wrap justify-between items-center gap-1 mb-1">
+              <label class="text-[11px] text-gray-400">Время слотов через запятую (ЧЧ:ММ)</label>
+              <div class="flex gap-2 text-[11px]">
+                <button type="button" onclick="document.getElementById('cs-times').value='10:00, 12:00, 14:00'" class="text-indigo-400 hover:underline">Утро/День</button>
+                <button type="button" onclick="document.getElementById('cs-times').value='18:00, 19:30, 21:00'" class="text-indigo-400 hover:underline">Вечер</button>
+                <button type="button" onclick="document.getElementById('cs-times').value='10:00, 13:00, 16:00, 19:00'" class="text-emerald-400 hover:underline">Полный день</button>
+              </div>
+            </div>
+            <input type="text" id="cs-times" value="10:00, 13:00, 16:00, 19:00" placeholder="10:00, 13:00, 16:00, 19:00" class="w-full bg-gray-900 border border-gray-700 text-xs font-mono rounded-lg px-3 py-2 text-white">
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+              <input type="checkbox" id="cs-skip-weekends" class="rounded bg-gray-700 border-gray-600 text-indigo-600">
+              <span>Пропускать выходные (Сб и Вс)</span>
+            </label>
+            <button type="button" onclick="addConsultSlots()" id="cs-add-slots-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-lg font-medium transition">+ Добавить окошки</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-medium text-gray-300">Текущие свободные окошки:</span>
+          <button type="button" onclick="clearAllFreeConsultSlots()" class="text-[11px] text-red-400 hover:text-red-300">🗑️ Удалить все свободные</button>
+        </div>
+        <div id="cs-free-slots-list" class="space-y-2.5"></div>
+      </div>
+      <div id="cs-view-settings" class="hidden flex-1 min-h-0 overflow-y-auto space-y-3.5 pr-1">
+        <div id="cs-admin-alert" class="bg-gray-800/60 border border-gray-700 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span id="cs-admin-alert-text" class="text-gray-300">Уведомления о новых записях приходят на аккаунт администратора.</span>
+          <button type="button" onclick="closeModal('consult-modal'); openTestAccountPicker(null);" class="text-indigo-400 hover:text-indigo-300 shrink-0 font-medium">Выбрать аккаунт →</button>
+        </div>
+        <label class="flex items-start gap-2.5 bg-gray-800/50 p-3 rounded-xl border border-gray-700 cursor-pointer">
+          <input type="checkbox" id="cs-require-phone" class="mt-0.5 rounded bg-gray-700 border-gray-600 text-indigo-600 w-4 h-4">
+          <div>
+            <div class="text-xs font-medium text-gray-200">📱 Запрашивать номер телефона перед подтверждением записи</div>
+            <div class="text-[11px] text-gray-400">Если выключено — клиент записывается мгновенно в 1 клик. Если включено — бот попросит поделиться контактом.</div>
+          </div>
+        </label>
+        <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-800 space-y-2">
+          <div class="flex flex-wrap justify-between items-center gap-1">
+            <label class="text-xs font-medium text-gray-200">⏰ Напоминание перед консультацией (в мин.)</label>
+            <div class="flex gap-1.5 text-[11px]">
+              <button type="button" onclick="document.getElementById('cs-remind-mins').value=0" class="px-1.5 py-0.5 bg-gray-800 rounded hover:bg-gray-700 text-gray-400">Выкл</button>
+              <button type="button" onclick="document.getElementById('cs-remind-mins').value=30" class="px-1.5 py-0.5 bg-gray-800 rounded hover:bg-gray-700 text-indigo-300">30м</button>
+              <button type="button" onclick="document.getElementById('cs-remind-mins').value=60" class="px-1.5 py-0.5 bg-gray-800 rounded hover:bg-gray-700 text-indigo-300">1ч</button>
+              <button type="button" onclick="document.getElementById('cs-remind-mins').value=180" class="px-1.5 py-0.5 bg-gray-800 rounded hover:bg-gray-700 text-indigo-300">3ч</button>
+              <button type="button" onclick="document.getElementById('cs-remind-mins').value=1440" class="px-1.5 py-0.5 bg-gray-800 rounded hover:bg-gray-700 text-indigo-300">24ч</button>
+            </div>
+          </div>
+          <input type="number" id="cs-remind-mins" min="0" value="60" class="w-full bg-gray-900 border border-gray-700 text-xs rounded-lg px-3 py-2 text-white">
+          <p class="text-[11px] text-gray-500">0 = не отправлять напоминание. Напоминание придёт и клиенту, и вам в Telegram.</p>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Сообщение после успешной записи (<code class="text-indigo-300">{date}</code>, <code class="text-indigo-300">{time}</code>, <code class="text-indigo-300">{remind}</code>, <code class="text-indigo-300">{phone}</code>)</label>
+          <textarea id="cs-confirm-text" rows="3" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg p-2.5 text-white"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Текст напоминания клиенту</label>
+          <textarea id="cs-remind-text" rows="2" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg p-2.5 text-white"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Текст запроса телефона (если включена галочка)</label>
+          <textarea id="cs-phone-text" rows="2" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg p-2.5 text-white"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Сообщение, если свободных окошек не осталось</label>
+          <textarea id="cs-noslots-text" rows="2" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg p-2.5 text-white"></textarea>
+        </div>
+        <div class="flex justify-end pt-1">
+          <button type="button" onclick="saveConsultSettings()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg text-xs font-medium transition">Сохранить настройки записи</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- МИНИ-ОКНО БЫСТРОЙ НАСТРОЙКИ ТАЙМЕРА ПЕРЕХОДА -->
+  <div id="quick-timer-modal" class="fixed inset-0 bg-black/75 hidden items-center justify-center p-4 z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center">
+        <h3 id="qt-title" class="text-sm font-bold text-white">Настройка задержки перехода</h3>
+        <button onclick="closeModal('quick-timer-modal')" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <input type="hidden" id="qt-kind">
+      <input type="hidden" id="qt-step-id">
+      <div id="qt-mode-wrap" class="hidden">
+        <label class="block text-xs text-gray-400 mb-1">Режим отправки следующего шага</label>
+        <select id="qt-mode" onchange="toggleQuickTimerModeUI()" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-2 text-white">
+          <option value="instant">⚡ Сразу (без паузы)</option>
+          <option value="delay">⏱ Через заданное время (Дни / Часы / Мин)</option>
+          <option value="msk">🕒 В точное время по МСК</option>
+        </select>
+      </div>
+      <div id="qt-rel-box" class="grid grid-cols-3 gap-2">
+        <div>
+          <label class="block text-[11px] text-gray-400 mb-1">Дней</label>
+          <input type="number" id="qt-days" min="0" value="1" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-2.5 py-1.5 text-white">
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-400 mb-1">Часов</label>
+          <input type="number" id="qt-hours" min="0" max="23" value="0" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-2.5 py-1.5 text-white">
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-400 mb-1">Минут</label>
+          <input type="number" id="qt-mins" min="0" max="59" value="0" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-2.5 py-1.5 text-white">
+        </div>
+      </div>
+      <div id="qt-msk-box" class="hidden grid-cols-2 gap-2">
+        <div>
+          <label class="block text-[11px] text-gray-400 mb-1">День (0 = сегодня, 1 = завтра)</label>
+          <input type="number" id="qt-msk-days" min="0" value="1" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-2.5 py-1.5 text-white">
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-400 mb-1">Время (МСК)</label>
+          <input type="time" id="qt-msk-time" value="19:00" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-2.5 py-1.5 text-white">
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button onclick="closeModal('quick-timer-modal')" class="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Отмена</button>
+        <button onclick="saveQuickTimer()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium">Сохранить</button>
+      </div>
+    </div>
+  </div>
+  <!-- МИНИ-ОКНО ВЫБОРА АККАУНТА АДМИНА -->
+  <div id="test-account-modal" class="fixed inset-0 bg-black/75 hidden items-center justify-center p-4 z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center">
+        <h3 class="text-sm font-bold text-white">🧪 Выберите ваш аккаунт в Telegram</h3>
+        <button onclick="closeModal('test-account-modal')" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <p class="text-xs text-gray-400">Выберите себя из списка подписчиков бота (если вас ещё нет в списке — нажмите /start в своём боте). Сюда будут приходить тесты шагов и уведомления о записях на консультацию.</p>
+      <input type="hidden" id="test-pending-step-id">
+      <select id="test-user-select" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-2 text-white"></select>
+      <div class="flex justify-end gap-2 pt-1">
+        <button onclick="closeModal('test-account-modal')" class="px-3 py-1.5 text-xs text-gray-400 hover:text-white">Отмена</button>
+        <button onclick="confirmTestAccountAndSend()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium">Запомнить аккаунт</button>
+      </div>
+    </div>
+  </div>
+  <!-- МОДАЛЬНОЕ ОКНО 2: РЕДАКТОР ШАГА ВОРОНКИ -->
+  <div id="step-editor-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-2.5 sm:p-4 z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full p-4 sm:p-6 space-y-3.5 max-h-[94dvh] overflow-y-auto shadow-2xl">
+      <div class="flex justify-between items-center gap-2">
+        <h3 id="step-editor-title" class="text-base sm:text-lg font-bold text-white truncate">Новый шаг воронки</h3>
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="ed-test-btn" onclick="triggerTestFromEditor()" class="hidden text-xs bg-indigo-600/25 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 px-2.5 py-1 rounded-lg transition">🧪 Тест</button>
+          <button onclick="closeModal('step-editor-modal')" class="text-gray-400 hover:text-white px-1">✕</button>
+        </div>
+      </div>
+      <input type="hidden" id="ed-id">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Название карточки (видно только вам в конструкторе)</label>
+        <input type="text" id="ed-title" placeholder="Например: Приветствие, Лид-магнит или Дожим 1" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+      </div>
+      <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-800 space-y-2">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-medium text-gray-200">Вложения (фото, видео, любые файлы)</span>
+          <button type="button" onclick="addAttachmentRow('ed-attachments-list')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg">+ Добавить файл</button>
+        </div>
+        <div id="ed-attachments-list" class="space-y-1.5"></div>
+      </div>
+      <div>
+        <div class="flex flex-wrap justify-between items-center gap-1 mb-1">
+          <label class="text-xs text-gray-400">Текст сообщения</label>
+          <div class="flex flex-wrap gap-1 text-xs" data-toolbar="ed-text"></div>
+        </div>
+        <textarea id="ed-text" rows="4" placeholder="Введите текст сообщения..." class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"></textarea>
+      </div>
+      <div class="space-y-2">
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-gray-800/50 p-3 rounded-xl border border-gray-800">
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <input type="checkbox" id="ed-require-sub" class="rounded bg-gray-700 border-gray-600 text-indigo-600 w-4 h-4 shrink-0">
+            <span class="text-xs text-gray-200">🔒 Проверять подписку на канал перед отправкой</span>
+          </label>
+          <button type="button" onclick="openChannelModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 shrink-0">Настроить канал →</button>
+        </div>
+        <label class="flex items-center gap-2.5 bg-gray-800/50 p-3 rounded-xl border border-gray-800 cursor-pointer">
+          <input type="checkbox" id="ed-delete-prev" class="rounded bg-gray-700 border-gray-600 text-indigo-600 w-4 h-4 shrink-0">
+          <span class="text-xs text-gray-200">🗑 Удалять предыдущее сообщение бота при переходе по кнопке (режим меню/квиза)</span>
+        </label>
+      </div>
+      <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-800 space-y-2.5">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-medium text-gray-200">Кнопки под сообщением</span>
+          <button type="button" onclick="addButtonRow('ed-buttons-list')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg">+ Добавить кнопку</button>
+        </div>
+        <div id="ed-buttons-list" class="space-y-2"></div>
+      </div>
+      <div class="border border-gray-800 rounded-xl overflow-hidden">
+        <button type="button" onclick="toggleAdvancedStepTrigger()" class="w-full bg-gray-800/40 hover:bg-gray-800/70 px-3.5 py-2.5 text-left text-xs text-gray-300 flex justify-between items-center transition">
+          <span>🔗 Откуда попадают в этот шаг (настройка перехода / таймера)</span>
+          <span id="ed-adv-arrow">▼</span>
+        </button>
+        <div id="ed-advanced-box" class="hidden p-3.5 bg-gray-900/70 space-y-3 border-t border-gray-800">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Условие запуска шага</label>
+            <select id="ed-trigger-type" onchange="toggleEditorTriggerUI()" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-2 text-white">
+              <option value="button">👆 По стрелке / кнопке (выбрать вручную)</option>
+              <option value="from_button">🔘 По нажатию конкретной кнопки из другого шага</option>
+              <option value="not_clicked">⏱ Если НЕ нажали кнопку в другом шаге (дожим)</option>
+              <option value="after_step">➡️ После отправки шага без кнопок</option>
+              <option value="start_default">🚀 Сразу на /start (по умолчанию)</option>
+              <option value="start_source">🔗 По UTM-ссылке (?start=метка)</option>
+              <option value="relative">⏱ По таймеру после /start (Дни/Часы/Мин)</option>
+              <option value="msk_time">🕒 В точное время по МСК от /start</option>
+            </select>
+          </div>
+          <div id="ed-frombtn-box" class="hidden bg-indigo-950/25 p-3 rounded-xl border border-indigo-800/50 space-y-2.5">
+            <div>
+              <label class="block text-xs text-indigo-300 mb-1">Из какого шага идёт переход?</label>
+              <select id="ed-frombtn-step" onchange="populateFromButtonOptions()" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white"></select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">По нажатию какой кнопки?</label>
+              <select id="ed-frombtn-idx" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white"></select>
+            </div>
+          </div>
+          <div id="ed-notclicked-box" class="hidden bg-amber-950/25 p-3 rounded-xl border border-amber-800/50 space-y-2">
+            <label class="block text-xs text-amber-300 mb-1">В каком шаге не нажали кнопку?</label>
+            <select id="ed-notclicked-step" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white"></select>
+            <p class="text-[11px] text-gray-400">Укажите ниже, через сколько дней/часов/минут отправить этот дожим.</p>
+          </div>
+          <div id="ed-afterstep-box" class="hidden bg-emerald-950/20 p-3 rounded-xl border border-emerald-800/50 space-y-2.5">
+            <div>
+              <label class="block text-xs text-emerald-300 mb-1">После какого шага отправить?</label>
+              <select id="ed-afterstep-id" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white"></select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Когда отправить?</label>
+              <select id="ed-after-mode" onchange="toggleEditorTriggerUI()" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+                <option value="instant">⚡ Сразу (без паузы)</option>
+                <option value="delay">⏱ Через интервал (Дни / Часы / Мин)</option>
+                <option value="msk">🕒 В точное время по МСК</option>
+              </select>
+            </div>
+          </div>
+          <div id="ed-source-box" class="hidden bg-gray-800/50 p-3 rounded-xl border border-gray-800">
+            <label class="block text-xs text-gray-400 mb-1">Метка источника (латиницей)</label>
+            <input type="text" id="ed-trigger-value" placeholder="youtube" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+          </div>
+          <div id="ed-relative-box" class="hidden grid-cols-3 gap-2 bg-gray-800/50 p-3 rounded-xl border border-gray-800">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Дней</label>
+              <input type="number" id="ed-rel-days" value="0" min="0" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Часов</label>
+              <input type="number" id="ed-rel-hours" value="0" min="0" max="23" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Минут</label>
+              <input type="number" id="ed-rel-mins" value="0" min="0" max="59" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+            </div>
+          </div>
+          <div id="ed-msk-box" class="hidden grid-cols-2 gap-2 bg-gray-800/50 p-3 rounded-xl border border-gray-800">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">День (0 = сегодня, 1 = завтра)</label>
+              <input type="number" id="ed-msk-days" value="1" min="0" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Точное время (МСК)</label>
+              <input type="time" id="ed-msk-time" value="19:00" class="w-full bg-gray-800 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('step-editor-modal')" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Отмена</button>
+        <button onclick="saveStepEditor()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg text-sm font-medium">Сохранить шаг</button>
+      </div>
+    </div>
+  </div>
+  <!-- МОДАЛЬНОЕ ОКНО 3: РАССЫЛКА -->
+  <div id="broadcast-modal" class="fixed inset-0 bg-black/75 hidden items-center justify-center p-2.5 sm:p-4 z-50">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-xl w-full p-4 sm:p-6 space-y-4 max-h-[94dvh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h2 class="text-base sm:text-lg font-bold">Рассылка сообщений</h2>
+        <button onclick="closeModal('broadcast-modal')" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Кому отправить</label>
+          <select id="bc-target" onchange="toggleBcTargetUI()" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white">
+            <option value="all">Всем активным подписчикам в базе</option>
+            <option value="tag">По тегу подписчика</option>
+            <option value="manual">Выборочно галочками</option>
+          </select>
+        </div>
+        <div id="bc-tag-box" class="hidden">
+          <label class="block text-xs text-gray-400 mb-1">Выберите тег</label>
+          <select id="bc-tag-select" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white"></select>
+        </div>
+        <div id="bc-manual-box" class="hidden space-y-2 bg-gray-800/60 p-3 rounded-xl border border-gray-700">
+          <div class="flex flex-wrap gap-1.5">
+            <input type="text" id="bc-search" oninput="filterBroadcastUsers()" placeholder="Поиск по имени..." class="flex-1 min-w-[140px] bg-gray-900 border border-gray-700 text-xs rounded-lg px-3 py-1.5 text-white">
+            <button type="button" onclick="toggleAllBcCheckboxes(true)" class="text-xs bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-lg">Все</button>
+            <button type="button" onclick="toggleAllBcCheckboxes(false)" class="text-xs bg-gray-700 hover:bg-gray-600 px-2.5 py-1 rounded-lg">Снять</button>
+          </div>
+          <div id="bc-users-checkboxes" class="max-h-40 overflow-y-auto space-y-1 text-sm"></div>
+        </div>
+        <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-800 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-medium text-gray-200">Вложения (фото, видео, файлы)</span>
+            <button type="button" onclick="addAttachmentRow('bc-attachments-list')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg">+ Добавить файл</button>
+          </div>
+          <div id="bc-attachments-list" class="space-y-1.5"></div>
+        </div>
+        <div>
+          <div class="flex flex-wrap justify-between items-center gap-1 mb-1">
+            <label class="text-xs text-gray-400">Текст рассылки</label>
+            <div class="flex flex-wrap gap-1 text-xs" data-toolbar="bc-text"></div>
+          </div>
+          <textarea id="bc-text" rows="4" placeholder="Введите текст..." class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg p-3 text-white"></textarea>
+        </div>
+        <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-800 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-medium text-gray-200">Кнопки под рассылкой</span>
+            <button type="button" onclick="addButtonRow('bc-buttons-list')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg">+ Добавить кнопку</button>
+          </div>
+          <div id="bc-buttons-list" class="space-y-2"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('broadcast-modal')" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Отмена</button>
+        <button onclick="sendBroadcast()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">Запустить рассылку</button>
+      </div>
+    </div>
+  </div>
+  <!-- МОДАЛЬНОЕ ОКНО 4: ГЕНЕРАТОР UTM-ССЫЛОК -->
+  <div id="deeplink-modal" class="fixed inset-0 bg-black/75 hidden items-center justify-center p-3 sm:p-4 z-50">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-base sm:text-lg font-bold">Генератор ссылок (UTM)</h2>
+        <button onclick="closeModal('deeplink-modal')" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <p class="text-xs text-gray-400">Создайте уникальную ссылку для YouTube, Threads или канала. Метка также появится на стартовом блоке доски, чтобы вы могли направить трафик на отдельную ветку.</p>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Метка источника (латиницей, без пробелов)</label>
+        <input type="text" id="dl-slug" oninput="updateDeeplinkPreview()" placeholder="например: youtube или threads" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white">
+      </div>
+      <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+        <div class="text-[11px] text-gray-400">Готовая ссылка для размещения:</div>
+        <div class="flex gap-2">
+          <input type="text" id="dl-result" readonly class="flex-1 bg-gray-900 border border-gray-700 text-xs rounded-lg px-2.5 py-1.5 text-indigo-300 font-mono min-w-0">
+          <button onclick="copyAndSaveDeeplink()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded-lg shrink-0">Копировать</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- МОДАЛЬНОЕ ОКНО 5: ПРОВЕРКА ПОДПИСКИ И ПРИЁМ ФАЙЛОВ -->
+  <div id="channel-modal" class="fixed inset-0 bg-black/75 hidden items-center justify-center p-3 sm:p-4 z-50">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 max-h-[94dvh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h2 class="text-base sm:text-lg font-bold">Подписка и каналы</h2>
+        <button onclick="closeModal('channel-modal')" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <p class="text-xs text-gray-400">Добавьте бота администратором в ваш канал — он автоматически появится в списке ниже. После сохранения бот сам проверит свои права.</p>
+      <div id="ch-known-wrap" class="hidden bg-indigo-950/30 border border-indigo-800/50 p-3 rounded-xl space-y-1.5">
+        <label class="block text-xs text-indigo-300 font-medium">⚡ Обнаруженные каналы, где бот админ:</label>
+        <select id="ch-known-select" onchange="applyKnownChannel(this.value)" class="w-full bg-gray-900 border border-gray-700 text-xs rounded-lg px-2.5 py-2 text-white">
+          <option value="">-- Выберите канал из списка --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Username канала, ID или ссылка на пост (например: @abuz_algo)</label>
+        <input type="text" id="ch-id" placeholder="@abuz_algo или -100..." class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Ссылка на канал для кнопки (пригласительная или https://t.me/...)</label>
+        <input type="text" id="ch-url" placeholder="https://t.me/+..." class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Текст, если человек ещё не подписан</label>
+        <textarea id="ch-text" rows="3" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg p-2.5 text-white"></textarea>
+      </div>
+      <div id="ch-status-banner" class="hidden text-xs rounded-xl p-3 border"></div>
+      <label class="flex items-start gap-2.5 bg-gray-800/60 p-3 rounded-xl border border-gray-700 cursor-pointer">
+        <input type="checkbox" id="ch-accept-files" class="mt-0.5 rounded bg-gray-700 border-gray-600 text-indigo-600 w-4 h-4 shrink-0">
+        <div>
+          <div class="text-xs font-medium text-gray-200">Приём файлов в каналах (выдача file_id)</div>
+          <div class="text-[11px] text-gray-400">Включайте, когда загружаете материалы в закрытый канал-хранилище. После настройки воронки можно выключить.</div>
+        </div>
+      </label>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('channel-modal')" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Закрыть</button>
+        <button onclick="saveChannel()" id="save-ch-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">Сохранить и проверить</button>
+      </div>
+    </div>
+  </div>
+  <!-- МОДАЛЬНОЕ ОКНО 6: НАСТРОЙКИ -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/75 hidden items-center justify-center p-3 sm:p-4 z-50">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 max-h-[94dvh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h2 class="text-base sm:text-lg font-bold">Настройки BotPult</h2>
+        <button onclick="closeModal('settings-modal')" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <!-- РАЗДЕЛ: ЛИЦЕНЗИЯ И ОБНОВЛЕНИЯ -->
+      <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-800 space-y-2.5">
+        <div class="flex justify-between items-center gap-2">
+          <h3 class="text-sm font-semibold text-white">🔑 Лицензия</h3>
+          <span class="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">✅ Активирована</span>
+        </div>
+        <div class="bg-gray-900/80 border border-gray-800 rounded-lg p-3 space-y-1.5 text-xs">
+          <div class="flex justify-between gap-2">
+            <span class="text-gray-400">Ключ:</span>
+            <span id="set-lic-key" class="font-mono text-gray-200">—</span>
+          </div>
+          <div class="flex justify-between gap-2">
+            <span class="text-gray-400">Тип лицензии:</span>
+            <span id="set-lic-type" class="text-gray-200">Стандартная</span>
+          </div>
+          <div class="flex justify-between gap-2">
+            <span class="text-gray-400">Дата активации:</span>
+            <span id="set-lic-date" class="text-gray-200">—</span>
+          </div>
+          <div class="flex justify-between gap-2">
+            <span class="text-gray-400">Версия BotPult:</span>
+            <span id="set-lic-version" class="font-mono text-indigo-300">v1.0.0</span>
+          </div>
+        </div>
+        <div id="set-lic-update-box" class="hidden bg-amber-500/15 border border-amber-500/40 rounded-lg p-2.5 text-xs text-amber-200 flex items-center justify-between gap-2">
+          <span id="set-lic-update-text">Доступно обновление!</span>
+          <a id="set-lic-update-link" href="#" target="_blank" rel="noopener" class="bg-amber-500/30 hover:bg-amber-500/45 text-amber-100 px-2.5 py-1 rounded font-medium shrink-0 transition">Скачать →</a>
+        </div>
+        <div class="flex items-center justify-between gap-2 pt-0.5">
+          <span id="set-lic-check-status" class="text-[11px] text-gray-500">Автопроверка раз в 24 ч.</span>
+          <button type="button" id="set-check-ver-btn" onclick="manualCheckVersion()" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-2.5 py-1 rounded-lg transition shrink-0">🔄 Проверить обновления</button>
+        </div>
+      </div>
+      <!-- РАЗДЕЛ: ПОДКЛЮЧЕНИЕ БОТА -->
+      <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-800 space-y-3">
+        <div class="flex justify-between items-center gap-2">
+          <h3 class="text-sm font-semibold text-white">🤖 Подключение Telegram-бота</h3>
+          <span id="set-current-bot" class="text-xs text-emerald-400 font-mono truncate"></span>
+        </div>
+        <p class="text-xs text-gray-400">Вставьте токен от @BotFather, чтобы подключить нового бота к этой воронке (вебхук настроится автоматически).</p>
+        <input type="text" id="set-bot-token" placeholder="1234567890:AAF..." class="w-full bg-gray-900 border border-gray-700 text-xs rounded-lg px-3 py-2 text-white font-mono">
+        <button onclick="saveNewBotToken()" id="save-token-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-medium transition">Сохранить и подключить бота</button>
+      </div>
+      <!-- РАЗДЕЛ: АККАУНТ ДЛЯ ТЕСТОВ -->
+      <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-800 space-y-2.5">
+        <div class="flex justify-between items-center gap-2">
+          <h3 class="text-sm font-semibold text-white">🧪 Аккаунт для тестов</h3>
+          <span id="set-test-account-label" class="text-xs text-indigo-400 truncate"></span>
+        </div>
+        <p class="text-xs text-gray-400">Сюда будут приходить тестовые шаги воронки и уведомления о новых записях на консультацию.</p>
+        <button onclick="closeModal('settings-modal'); openTestAccountPicker(null);" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-xs font-medium transition">Выбрать / изменить мой Telegram аккаунт</button>
+      </div>
+      <!-- РАЗДЕЛ: ДОСТУП В АДМИНКУ -->
+      <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-800 space-y-3">
+        <h3 class="text-sm font-semibold text-white">🔐 Доступ в админ-панель</h3>
+        <p class="text-xs text-gray-400">При смене пароля все активные сессии на других устройствах будут автоматически закрыты.</p>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Новый логин</label>
+          <input type="text" id="set-auth-login" class="w-full bg-gray-900 border border-gray-700 text-sm rounded-lg px-3 py-1.5 text-white">
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-1 gap-2">
+            <label class="text-xs text-gray-400">Новый пароль (от 4 знаков)</label>
+            <div class="flex gap-2 shrink-0">
+              <button type="button" onclick="generateStrongPassword('set-auth-pass')" class="text-[11px] text-indigo-400 hover:text-indigo-300">🎲 Сгенер.</button>
+              <button type="button" onclick="copyInputValue('set-auth-pass', this)" class="text-[11px] text-emerald-400 hover:text-emerald-300">📋 Копир.</button>
+            </div>
+          </div>
+          <div class="relative">
+            <input type="password" id="set-auth-pass" placeholder="Введите или сгенерируйте..." class="w-full bg-gray-900 border border-gray-700 text-sm rounded-lg pl-3 pr-10 py-1.5 text-white">
+            <button type="button" onclick="togglePassVisibility('set-auth-pass')" title="Показать / скрыть пароль" class="absolute inset-y-0 right-2.5 flex items-center text-gray-400 hover:text-white text-sm">👁️</button>
+          </div>
+        </div>
+        <button onclick="saveNewAuth()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-lg text-xs font-medium transition">Обновить логин и пароль</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const API_URL = "https://tg-bot-worker.abuzalgo.workers.dev";
+    const APP_VERSION = "1.0.0";
+    const $ = id => document.getElementById(id);
+
+    let sessionToken = localStorage.getItem("bot_crm_token") || "";
+    let licenseInfo = null;
+    let latestVersionInfo = null;
+    let currentChatId = null;
+    let adminTestChatId = null;
+    let allUsers = [];
+    let allSteps = [];
+    let boardMeta = { start_x: 40, start_y: 120, utm_slugs: [], default_step_id: null, utm_links: {} };
+    let knownChannelsList = [];
+    let consultSlots = [];
+    let consultConfig = {};
+    let botUsername = "";
+    let currentLogin = "admin";
+    let funnelViewMode = "board";
+    let boardScale = 1;
+    let boardOffset = { x: 0, y: 0 };
+    let pollTimer = null;
+
+    function getClientXY(e) {
+      if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (e.changedTouches && e.changedTouches.length > 0) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+      return { x: e.clientX, y: e.clientY };
+    }
+
+    function attachDragListeners(onMove, onEnd) {
+      const moveHandler = ev => {
+        if (ev.cancelable) ev.preventDefault();
+        onMove(getClientXY(ev), ev);
+      };
+      const upHandler = ev => {
+        window.removeEventListener('mousemove', moveHandler);
+        window.removeEventListener('mouseup', upHandler);
+        window.removeEventListener('touchmove', moveHandler);
+        window.removeEventListener('touchend', upHandler);
+        if (onEnd) onEnd(getClientXY(ev), ev);
+      };
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('mouseup', upHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: false });
+      window.addEventListener('touchend', upHandler);
+    }
+
+    function getStepDisplayNum(stepId) {
+      const idx = allSteps.findIndex(s => Number(s.id) === Number(stepId));
+      return idx !== -1 ? idx + 1 : stepId;
+    }
+
+    function getDefaultStartStep() {
+      if (boardMeta.default_step_id) {
+        const found = allSteps.find(s => Number(s.id) === Number(boardMeta.default_step_id));
+        if (found) return found;
+      }
+      return allSteps.find(s => s.trigger_type === 'start_default') || null;
+    }
+
+    function getUtmLinkedStep(slug) {
+      const targetId = boardMeta.utm_links?.[slug];
+      if (targetId) {
+        const found = allSteps.find(s => Number(s.id) === Number(targetId));
+        if (found) return found;
+      }
+      return allSteps.find(s => s.trigger_type === 'start_source' && s.trigger_value === slug) || null;
+    }
+
+    function parseFallbackCfg(step) {
+      if (step.fallback_cfg) {
+        try {
+          const obj = typeof step.fallback_cfg === 'string' ? JSON.parse(step.fallback_cfg) : step.fallback_cfg;
+          if (obj && Number(obj.target_id) > 0) return obj;
+        } catch (e) {}
+      }
+      const legacyTarget = allSteps.find(x => x.trigger_type === 'not_clicked' && String(x.trigger_value) === String(step.id));
+      if (legacyTarget) {
+        return {
+          target_id: legacyTarget.id,
+          days: Number(legacyTarget.delay_days) || 0,
+          hours: Number(legacyTarget.delay_hours) || 0,
+          minutes: Number(legacyTarget.delay_minutes) || 0,
+          is_legacy: true
+        };
+      }
+      return null;
+    }
+
+    function formatDateRuClient(dateStr) {
+      const [y, m, d] = String(dateStr || "").split("-").map(Number);
+      if (!y || !m || !d) return dateStr;
+      const months = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+      const weekdays = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+      return `${d} ${months[m - 1]} (${weekdays[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]})`;
+    }
+
+    // --- УТИЛИТЫ ДЛЯ ПАРОЛЕЙ ---
+    function togglePassVisibility(inputId) {
+      const inp = $(inputId);
+      if (inp) inp.type = inp.type === "password" ? "text" : "password";
+    }
+
+    function generateStrongPassword(inputId) {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*_-";
+      const array = new Uint32Array(12);
+      crypto.getRandomValues(array);
+      let pass = "";
+      for (let i = 0; i < 12; i++) pass += chars[array[i] % chars.length];
+      const inp = $(inputId);
+      inp.value = pass;
+      inp.type = "text";
+    }
+
+    function copyInputValue(inputId, btnEl) {
+      const inp = $(inputId);
+      if (!inp || !inp.value) return alert("Поле пароля пустое!");
+      navigator.clipboard.writeText(inp.value);
+      const orig = btnEl.innerText;
+      btnEl.innerText = "✓ Скопировано";
+      setTimeout(() => { btnEl.innerText = orig; }, 1800);
+    }
+
+    function toggleRecoveryView(showRecovery) {
+      $("login-view").classList.toggle("hidden", showRecovery);
+      $("recover-view").classList.toggle("hidden", !showRecovery);
+      $("login-error").classList.add("hidden");
+      $("rec-error").classList.add("hidden");
+    }
+
+    // --- ЗАПРОСЫ К API ---
+    async function apiFetch(path, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken}`;
+      const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+      if (res.status === 403) {
+        const cloneData = await res.clone().json().catch(() => ({}));
+        if (cloneData && cloneData.license_required) {
+          showActivationScreen();
+          throw new Error("License required");
+        }
+      }
+      if (res.status === 401) {
+        logout();
+        throw new Error("Unauthorized");
+      }
+      return res;
+    }
+
+    function apiPost(path, body) {
+      return apiFetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+    }
+
+    function apiDelete(path) {
+      return apiFetch(path, { method: "DELETE" });
+    }
+
+    // --- ЗАПУСК, АКТИВАЦИЯ ЛИЦЕНЗИИ, ВХОД И ОБНОВЛЕНИЯ ---
+    function hideBootLoader() {
+      const loader = $("boot-loader");
+      if (loader) loader.classList.add("hidden");
+    }
+
+    function showActivationScreen(ver = APP_VERSION) {
+      if (pollTimer) clearInterval(pollTimer);
+      $("act-version-pill").innerText = `v${ver}`;
+      $("act-error").classList.add("hidden");
+      $("activation-screen").classList.remove("hidden");
+      $("activation-screen").classList.add("flex");
+      $("login-screen").classList.add("hidden");
+      $("login-screen").classList.remove("flex");
+      $("app-shell").classList.add("hidden");
+      $("app-shell").classList.remove("flex");
+      $("default-pass-banner").classList.add("hidden");
+    }
+
+    async function submitActivation(e) {
+      e.preventDefault();
+      const key = $("act-key").value.trim().toUpperCase();
+      const errBox = $("act-error");
+      const btn = $("act-btn");
+      errBox.classList.add("hidden");
+      if (!key) return;
+
+      btn.disabled = true;
+      btn.innerText = "Проверка ключа...";
+      try {
+        const res = await fetch(`${API_URL}/api/license/activate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          errBox.innerText = data.error || "Ошибка активации ключа";
+          errBox.classList.remove("hidden");
+          return;
+        }
+        licenseInfo = data.license || { activated: true };
+        $("act-key").value = "";
+        $("activation-screen").classList.add("hidden");
+        $("activation-screen").classList.remove("flex");
+
+        if (sessionToken) {
+          try {
+            const me = await (await apiFetch("/api/me")).json();
+            await enterApp(me);
+            return;
+          } catch (err) {}
+        }
+        showLoginScreen();
+      } catch (err) {
+        errBox.innerText = "Ошибка соединения с сервером. Проверьте интернет.";
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Активировать BotPult";
+      }
+    }
+
+    async function boot() {
+      initToolbars();
+      initBoardPanning();
+      resetChatAttachments();
+      window.addEventListener("resize", syncResponsiveChatLayout);
+
+      try {
+        const licRes = await fetch(`${API_URL}/api/license/status`);
+        if (licRes.ok) {
+          const licData = await licRes.json();
+          if (!licData.activated) {
+            hideBootLoader();
+            showActivationScreen(licData.version || APP_VERSION);
+            return;
+          }
+          licenseInfo = licData.license || null;
+        }
+      } catch (e) {}
+
+      if (!sessionToken) {
+        hideBootLoader();
+        showLoginScreen();
+        return;
+      }
+      try {
+        const me = await (await apiFetch("/api/me")).json();
+        await enterApp(me);
+        hideBootLoader();
+      } catch (e) {
+        hideBootLoader();
+        if ($("activation-screen").classList.contains("hidden")) {
+          showLoginScreen();
+        }
+      }
+    }
+
+    function showLoginScreen() {
+      toggleRecoveryView(false);
+      $("activation-screen").classList.add("hidden");
+      $("activation-screen").classList.remove("flex");
+      $("login-screen").classList.remove("hidden");
+      $("login-screen").classList.add("flex");
+      $("app-shell").classList.add("hidden");
+      $("app-shell").classList.remove("flex");
+      $("default-pass-banner").classList.add("hidden");
+    }
+
+    async function submitLogin(e) {
+      e.preventDefault();
+      const login = $("login-user").value.trim();
+      const password = $("login-pass").value;
+      const errBox = $("login-error");
+      const btn = $("login-btn");
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.innerText = "Проверка...";
+      try {
+        const res = await fetch(`${API_URL}/api/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ login, password })
+        });
+        const data = await res.json();
+        if (res.status === 403 && data.license_required) {
+          showActivationScreen();
+          return;
+        }
+        if (!res.ok || !data.success) {
+          errBox.innerText = data.error || "Ошибка входа";
+          errBox.classList.remove("hidden");
+          return;
+        }
+        sessionToken = data.token;
+        localStorage.setItem("bot_crm_token", sessionToken);
+        $("login-pass").value = "";
+        await enterApp(await (await apiFetch("/api/me")).json());
+      } catch (err) {
+        errBox.innerText = "Ошибка соединения с сервером";
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Войти";
+      }
+    }
+
+    async function submitRecovery(e) {
+      e.preventDefault();
+      const bot_token = $("rec-token").value.trim();
+      const new_login = $("rec-login").value.trim();
+      const new_password = $("rec-pass").value;
+      const errBox = $("rec-error");
+      const btn = $("rec-btn");
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.innerText = "Проверка токена...";
+      try {
+        const res = await fetch(`${API_URL}/api/recover`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bot_token, new_login, new_password })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          errBox.innerText = data.error || "Ошибка восстановления";
+          errBox.classList.remove("hidden");
+          return;
+        }
+        sessionToken = data.token;
+        localStorage.setItem("bot_crm_token", sessionToken);
+        $("rec-token").value = "";
+        $("rec-pass").value = "";
+        await enterApp(await (await apiFetch("/api/me")).json());
+        alert("Новый логин и пароль успешно установлены!");
+      } catch (err) {
+        errBox.innerText = "Ошибка соединения с сервером";
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Сбросить и войти";
+      }
+    }
+
+    function applyVersionBadgeUI(verData) {
+      latestVersionInfo = verData;
+      const badge = $("app-update-badge");
+      if (!badge) return;
+      if (verData && verData.has_update && verData.latest_version) {
+        const safeVer = escapeHtml(verData.latest_version);
+        if (verData.update_url) {
+          badge.innerHTML = `<a href="${escapeHtml(verData.update_url)}" target="_blank" rel="noopener" title="Доступна новая версия BotPult v${safeVer}" class="inline-flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-medium transition">⬆ Обновить до v${safeVer}</a>`;
+        } else {
+          badge.innerHTML = `<span class="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-medium">⬆ Доступна v${safeVer}</span>`;
+        }
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+        badge.innerHTML = "";
+      }
+    }
+
+    async function checkAppVersion(force = false) {
+      try {
+        const res = await apiFetch(`/api/version${force ? "?force=1" : ""}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        applyVersionBadgeUI(data);
+        return data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function enterApp(me) {
+      currentLogin = me.login || "admin";
+      botUsername = me.bot_username || "";
+      adminTestChatId = me.admin_test_chat_id || null;
+      if (me.license) licenseInfo = me.license;
+
+      $("activation-screen").classList.add("hidden");
+      $("activation-screen").classList.remove("flex");
+      $("login-screen").classList.add("hidden");
+      $("login-screen").classList.remove("flex");
+      $("app-shell").classList.remove("hidden");
+      $("app-shell").classList.add("flex");
+      $("default-pass-banner").classList.toggle("hidden", !me.is_default);
+      $("connected-bot-badge").innerText = botUsername ? `Бот: @${botUsername}` : "Бот: не привязан";
+      $("app-version-label").innerText = `BotPult v${me.version || APP_VERSION}`;
+      syncResponsiveChatLayout();
+      await Promise.all([loadUsers(), fetchFunnelSteps(), fetchBoardMeta()]);
+      checkAppVersion(false);
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(() => {
+        loadUsers();
+        if (currentChatId) loadMessages();
+      }, 10000);
+    }
+
+    function logout() {
+      sessionToken = "";
+      localStorage.removeItem("bot_crm_token");
+      if (pollTimer) clearInterval(pollTimer);
+      showLoginScreen();
+    }
+
+    // --- АДАПТИВНАЯ НАВИГАЦИЯ ЧАТА НА ТЕЛЕФОНЕ ---
+    function syncResponsiveChatLayout() {
+      const sidebar = $("sidebar-pane");
+      const chatPane = $("chat-pane");
+      if (!sidebar || !chatPane) return;
+      const isDesktop = window.innerWidth >= 768;
+      sidebar.classList.toggle("hidden", !isDesktop && Boolean(currentChatId));
+      sidebar.classList.toggle("flex", isDesktop || !currentChatId);
+      chatPane.classList.toggle("hidden", !isDesktop && !currentChatId);
+      chatPane.classList.toggle("flex", isDesktop || Boolean(currentChatId));
+    }
+
+    function closeMobileChat() {
+      currentChatId = null;
+      syncResponsiveChatLayout();
+      renderUsersList();
+    }
+
+    function toggleChatDrawer(kind) {
+      const attDrawer = $("chat-att-drawer");
+      const fmtDrawer = $("chat-fmt-drawer");
+      const attBtn = $("chat-att-toggle");
+      const fmtBtn = $("chat-fmt-toggle");
+      if (kind === "att") {
+        const willOpen = attDrawer.classList.contains("hidden");
+        attDrawer.classList.toggle("hidden", !willOpen);
+        fmtDrawer.classList.add("hidden");
+        attBtn.classList.toggle("border-indigo-500", willOpen);
+        fmtBtn.classList.remove("border-indigo-500");
+      } else {
+        const willOpen = fmtDrawer.classList.contains("hidden");
+        fmtDrawer.classList.toggle("hidden", !willOpen);
+        attDrawer.classList.add("hidden");
+        fmtBtn.classList.toggle("border-indigo-500", willOpen);
+        attBtn.classList.remove("border-indigo-500");
+      }
+    }
+
+    function autoGrowChatInput(el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 112) + "px";
+    }
+
+    function updateChatAttBadge() {
+      const badge = $("chat-att-badge");
+      if (!badge) return;
+      const count = collectAttachmentsFromContainer("chat-attachments-list").length;
+      badge.innerText = count;
+      badge.classList.toggle("hidden", count === 0);
+    }
+
+    // --- ТЕСТИРОВАНИЕ ШАГА И ВЫБОР АККАУНТА АДМИНА ---
+    async function testStepInTelegram(stepId) {
+      if (!adminTestChatId) {
+        openTestAccountPicker(stepId);
+        return;
+      }
+      const res = await apiPost("/api/funnel/test", { step_id: stepId, chat_id: adminTestChatId });
+      const data = await res.json();
+      if (!res.ok || !data.success) alert(data.error || "Ошибка отправки теста");
+      else alert("✅ Тестовое сообщение отправлено вам в Telegram!");
+    }
+
+    function triggerTestFromEditor() {
+      const id = $("ed-id").value;
+      if (id) testStepInTelegram(Number(id));
+    }
+
+    function openTestAccountPicker(pendingStepId) {
+      if (allUsers.length === 0) {
+        alert("В базе пока нет ни одного подписчика. Сначала зайдите в своего бота в Telegram и нажмите /start!");
+        return;
+      }
+      $("test-pending-step-id").value = pendingStepId || "";
+      $("test-user-select").innerHTML = allUsers.map(u => `
+        <option value="${u.chat_id}" ${Number(adminTestChatId) === Number(u.chat_id) ? 'selected' : ''}>
+          ${escapeHtml(u.first_name)} ${u.username ? '(@' + escapeHtml(u.username) + ')' : '(ID: ' + u.chat_id + ')'}
+        </option>
+      `).join('');
+      openModal("test-account-modal");
+    }
+
+    async function confirmTestAccountAndSend() {
+      const chosenId = Number($("test-user-select").value);
+      if (!chosenId) return;
+      await apiPost("/api/settings/test-chat", { chat_id: chosenId });
+      adminTestChatId = chosenId;
+      closeModal("test-account-modal");
+      const pendingStepId = $("test-pending-step-id").value;
+      if (pendingStepId) await testStepInTelegram(Number(pendingStepId));
+      else alert("✅ Аккаунт администратора сохранён!");
+    }
+
+    // --- МОДУЛЬ КОНСУЛЬТАЦИЙ И ЗАПИСИ ---
+    async function openConsultModal(tabName = 'bookings') {
+      const tomorrow = new Date(Date.now() + 86400 * 1000).toISOString().slice(0, 10);
+      const dateInp = $('cs-start-date');
+      if (!dateInp.value) dateInp.value = tomorrow;
+      await loadConsultData();
+      switchConsultTab(tabName);
+      openModal('consult-modal');
+    }
+
+    function switchConsultTab(tab) {
+      ['bookings', 'slots', 'settings'].forEach(t => {
+        $(`cs-view-${t}`).classList.toggle('hidden', t !== tab);
+        $(`cs-tab-btn-${t}`).className = t === tab
+          ? 'py-2 px-1.5 sm:px-3 rounded-lg bg-indigo-600 text-white font-medium transition truncate'
+          : 'py-2 px-1.5 sm:px-3 rounded-lg text-gray-400 hover:text-white transition truncate';
+      });
+    }
+
+    async function loadConsultData() {
+      const data = await (await apiFetch("/api/consult")).json();
+      consultSlots = data.slots || [];
+      consultConfig = data.config || {};
+      $('cs-require-phone').checked = Boolean(consultConfig.require_phone);
+      $('cs-remind-mins').value = consultConfig.remind_minutes ?? 60;
+      $('cs-confirm-text').value = consultConfig.confirm_text || '';
+      $('cs-remind-text').value = consultConfig.remind_text || '';
+      $('cs-phone-text').value = consultConfig.phone_prompt_text || '';
+      $('cs-noslots-text').value = consultConfig.no_slots_text || '';
+
+      const adminUser = allUsers.find(u => Number(u.chat_id) === Number(adminTestChatId));
+      const alertText = $('cs-admin-alert-text');
+      if (adminUser) {
+        alertText.innerHTML = `✅ Уведомления настроены на: <b class="text-white">${escapeHtml(adminUser.first_name)}</b> ${adminUser.username ? '(@' + escapeHtml(adminUser.username) + ')' : ''}`;
+      } else if (adminTestChatId) {
+        alertText.innerHTML = `✅ Уведомления настроены на ID: <b class="text-white">${adminTestChatId}</b>`;
+      } else {
+        alertText.innerHTML = `⚠️ <span class="text-amber-300">Не выбран аккаунт для уведомлений о новых записях!</span>`;
+      }
+      renderConsultViews();
+    }
+
+    function renderConsultViews() {
+      const booked = consultSlots.filter(s => s.booked_by !== null && s.booked_by !== undefined);
+      const free = consultSlots.filter(s => s.booked_by === null || s.booked_by === undefined);
+      $('cs-bookings-count').innerText = booked.length;
+      $('cs-free-count').innerText = free.length;
+
+      $('cs-bookings-list').innerHTML = booked.length === 0
+        ? '<div class="text-center text-gray-500 text-xs py-10">Предстоящих записей пока нет.</div>'
+        : booked.map(b => `
+          <div class="bg-gray-800/70 border border-gray-700 rounded-xl p-3.5 flex flex-wrap justify-between items-center gap-3">
+            <div class="space-y-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold bg-indigo-600 text-white px-2 py-0.5 rounded">📅 ${formatDateRuClient(b.slot_date)} • ${escapeHtml(b.slot_time)} МСК</span>
+                <span class="text-[11px] px-2 py-0.5 rounded ${b.reminded ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-700 text-gray-300'}">${b.reminded ? '✓ Напомнили' : '⏳ Ждёт напоминания'}</span>
+              </div>
+              <div class="text-sm font-medium text-white">
+                👤 ${escapeHtml(b.client_name || 'Подписчик')}
+                ${b.client_username ? `<span class="text-xs text-indigo-300 ml-1">@${escapeHtml(b.client_username)}</span>` : ''}
+                ${b.client_phone ? `<span class="text-xs bg-gray-900 text-emerald-300 border border-gray-700 px-2 py-0.5 rounded ml-1 font-mono">📱 ${escapeHtml(b.client_phone)}</span>` : ''}
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" onclick="closeModal('consult-modal'); selectUser(${b.booked_by});" class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-2.5 py-1.5 rounded-lg transition">💬 Чат</button>
+              <button type="button" onclick="cancelBookingFromAdmin(${b.id}, '${escapeHtml(b.client_name || '')}', '${b.slot_date}', '${b.slot_time}')" class="text-xs bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-800/50 px-2.5 py-1.5 rounded-lg transition">❌ Отменить</button>
+            </div>
+          </div>
+        `).join('');
+
+      const freeBox = $('cs-free-slots-list');
+      if (free.length === 0) {
+        freeBox.innerHTML = '<div class="text-center text-gray-500 text-xs py-8">Свободных окошек нет. Добавьте расписание выше.</div>';
+      } else {
+        const grouped = new Map();
+        free.forEach(s => {
+          if (!grouped.has(s.slot_date)) grouped.set(s.slot_date, []);
+          grouped.get(s.slot_date).push(s);
+        });
+        freeBox.innerHTML = Array.from(grouped.entries()).map(([dateStr, items]) => `
+          <div class="bg-gray-800/40 border border-gray-800 rounded-xl p-3 space-y-2">
+            <div class="text-xs font-semibold text-emerald-300">📅 ${formatDateRuClient(dateStr)}</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${items.map(it => `
+                <span class="inline-flex items-center gap-1.5 bg-gray-900 border border-gray-700 text-xs text-gray-200 px-2.5 py-1 rounded-lg font-mono">
+                  ${escapeHtml(it.slot_time)}
+                  <button type="button" onclick="deleteSingleFreeSlot(${it.id})" class="text-gray-500 hover:text-red-400 text-[11px]" title="Удалить окошко">✕</button>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    async function addConsultSlots() {
+      const startDate = $('cs-start-date').value;
+      const daysCount = Number($('cs-days-count').value) || 1;
+      const skipWeekends = $('cs-skip-weekends').checked;
+      const times = $('cs-times').value.split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+      if (!startDate) return alert("Выберите начальную дату!");
+      if (times.length === 0) return alert("Укажите хотя бы одно время (например: 14:00)!");
+
+      const [y, m, d] = startDate.split('-').map(Number);
+      const dates = [];
+      for (let i = 0; i < daysCount; i++) {
+        const dt = new Date(Date.UTC(y, m - 1, d + i));
+        const day = dt.getUTCDay();
+        if (skipWeekends && (day === 0 || day === 6)) continue;
+        dates.push(dt.toISOString().slice(0, 10));
+      }
+      if (dates.length === 0) return alert("Все выбранные дни попали на выходные!");
+
+      const btn = $('cs-add-slots-btn');
+      btn.disabled = true;
+      btn.innerText = "Добавление...";
+      try {
+        const data = await (await apiPost("/api/consult/slots", { dates, times })).json();
+        await loadConsultData();
+        alert(`✅ Добавлено новых свободных окошек: ${data.added || 0}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "+ Добавить окошки";
+      }
+    }
+
+    async function deleteSingleFreeSlot(slotId) {
+      await apiDelete(`/api/consult/slots?id=${slotId}`);
+      await loadConsultData();
+    }
+
+    async function clearAllFreeConsultSlots() {
+      if (!confirm("Удалить все свободные (незанятые) окошки? Записи клиентов останутся нетронутыми.")) return;
+      await apiDelete("/api/consult/slots?mode=free_all");
+      await loadConsultData();
+    }
+
+    async function cancelBookingFromAdmin(slotId, clientName, dateStr, timeStr) {
+      if (!confirm(`Отменить запись клиента ${clientName} на ${formatDateRuClient(dateStr)} в ${timeStr}?\nОкошко снова станет свободным, а клиент получит уведомление об отмене.`)) return;
+      await apiPost("/api/consult/cancel-booking", { slot_id: slotId, notify_client: true });
+      await loadConsultData();
+    }
+
+    async function saveConsultSettings() {
+      await apiPost("/api/consult/config", {
+        require_phone: $('cs-require-phone').checked,
+        remind_minutes: Number($('cs-remind-mins').value) || 0,
+        confirm_text: $('cs-confirm-text').value.trim(),
+        remind_text: $('cs-remind-text').value.trim(),
+        phone_prompt_text: $('cs-phone-text').value.trim(),
+        no_slots_text: $('cs-noslots-text').value.trim(),
+      });
+      alert("✅ Настройки консультаций сохранены!");
+    }
+
+    // --- НАСТРОЙКИ, ЛИЦЕНЗИЯ И ЭКСПОРТ ---
+    function syncSettingsLicenseUI() {
+      $("set-lic-key").innerText = licenseInfo?.key_masked || "Активирована";
+      $("set-lic-type").innerText = licenseInfo?.type === "red" ? "Автономный код (RED)" : "Стандартная (BP)";
+      $("set-lic-date").innerText = licenseInfo?.activated_at
+        ? new Date(licenseInfo.activated_at * 1000).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })
+        : "—";
+      $("set-lic-version").innerText = `v${APP_VERSION}`;
+
+      const updBox = $("set-lic-update-box");
+      if (latestVersionInfo && latestVersionInfo.has_update && latestVersionInfo.latest_version) {
+        $("set-lic-update-text").innerText = `Доступна новая версия v${latestVersionInfo.latest_version}`;
+        const link = $("set-lic-update-link");
+        if (latestVersionInfo.update_url) {
+          link.href = latestVersionInfo.update_url;
+          link.classList.remove("hidden");
+        } else {
+          link.classList.add("hidden");
+        }
+        updBox.classList.remove("hidden");
+      } else {
+        updBox.classList.add("hidden");
+      }
+    }
+
+    async function manualCheckVersion() {
+      const btn = $("set-check-ver-btn");
+      const status = $("set-lic-check-status");
+      btn.disabled = true;
+      btn.innerText = "Проверка...";
+      try {
+        const res = await checkAppVersion(true);
+        syncSettingsLicenseUI();
+        if (!res) {
+          status.innerText = "Сервер обновлений недоступен";
+        } else if (res.has_update) {
+          status.innerText = `Доступна v${res.latest_version}`;
+        } else {
+          status.innerText = "Установлена актуальная версия ✓";
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "🔄 Проверить обновления";
+      }
+    }
+
+    function openSettingsModal() {
+      syncSettingsLicenseUI();
+      $("set-lic-check-status").innerText = "Автопроверка раз в 24 ч.";
+      $("set-current-bot").innerText = botUsername ? `@${botUsername}` : "Не подключен";
+      $("set-bot-token").value = "";
+      $("set-auth-login").value = currentLogin;
+      const testUser = allUsers.find(u => Number(u.chat_id) === Number(adminTestChatId));
+      $("set-test-account-label").innerText = testUser
+        ? `${testUser.first_name}${testUser.username ? ' (@' + testUser.username + ')' : ''}`
+        : (adminTestChatId ? `ID: ${adminTestChatId}` : "Не выбран");
+      const passInp = $("set-auth-pass");
+      passInp.value = "";
+      passInp.type = "password";
+      openModal("settings-modal");
+    }
+
+    async function saveNewBotToken() {
+      const token = $("set-bot-token").value.trim();
+      if (!token) return alert("Вставьте токен бота!");
+      const btn = $("save-token-btn");
+      btn.disabled = true;
+      btn.innerText = "Подключение...";
+      try {
+        const res = await apiPost("/api/settings/bot-token", { token });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          alert(data.error || "Ошибка подключения бота");
+        } else {
+          botUsername = data.username;
+          $("set-current-bot").innerText = `@${botUsername}`;
+          $("connected-bot-badge").innerText = `Бот: @${botUsername}`;
+          $("set-bot-token").value = "";
+          alert(`Бот @${botUsername} успешно подключён к воронке!`);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Сохранить и подключить бота";
+      }
+    }
+
+    async function saveNewAuth() {
+      const login = $("set-auth-login").value.trim();
+      const password = $("set-auth-pass").value;
+      if (!login || password.length < 4) return alert("Логин не должен быть пустым, а пароль — минимум 4 символа.");
+      const res = await apiPost("/api/settings/auth", { login, password });
+      const data = await res.json();
+      if (!res.ok || !data.success) return alert(data.error || "Ошибка сохранения");
+      sessionToken = data.token;
+      localStorage.setItem("bot_crm_token", sessionToken);
+      currentLogin = login;
+      $("default-pass-banner").classList.add("hidden");
+      closeModal("settings-modal");
+      alert("Логин и пароль успешно обновлены! Не забудьте сохранить новый пароль.");
+    }
+
+    async function exportCsv() {
+      const csvText = await (await apiFetch("/api/export-csv")).text();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob(["\uFEFF" + csvText], { type: "text/csv;charset=utf-8;" }));
+      link.download = `subscribers_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+    }
+
+    async function fetchBoardMeta() {
+      try {
+        boardMeta = await (await apiFetch("/api/board-meta")).json();
+        if (!Array.isArray(boardMeta.utm_slugs)) boardMeta.utm_slugs = [];
+        if (!boardMeta.utm_links || typeof boardMeta.utm_links !== "object") boardMeta.utm_links = {};
+      } catch (e) {}
+    }
+
+    function saveBoardMeta() {
+      return apiPost("/api/board-meta", boardMeta);
+    }
+
+    // --- КОНСТРУКТОР ВЛОЖЕНИЙ ---
+    function addAttachmentRow(containerId, data = { type: 'photo', file_id: '' }) {
+      const isChat = containerId === 'chat-attachments-list';
+      const row = document.createElement('div');
+      row.className = 'att-builder-row flex flex-wrap sm:flex-nowrap gap-1.5 items-center';
+      row.innerHTML = `
+        <select class="att-type-inp bg-gray-800 border border-gray-700 text-xs rounded-lg px-2 py-1.5 text-gray-200 focus:outline-none">
+          <option value="photo" ${data.type === 'photo' ? 'selected' : ''}>Фото</option>
+          <option value="video" ${data.type === 'video' ? 'selected' : ''}>Видео</option>
+          <option value="document" ${data.type === 'document' ? 'selected' : ''}>Файл</option>
+        </select>
+        <input type="text" placeholder="Вставьте file_id..." value="${escapeHtml(data.file_id || '')}"
+          ${isChat ? 'oninput="updateChatAttBadge()"' : ''}
+          class="att-id-inp flex-1 min-w-[140px] bg-gray-800 border border-gray-700 text-xs rounded-lg px-2.5 py-1.5 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500">
+        <button type="button" onclick="this.closest('.att-builder-row').remove(); ${isChat ? 'updateChatAttBadge();' : ''}" class="text-gray-500 hover:text-red-400 px-1.5 text-xs" title="Убрать">✕</button>
+      `;
+      $(containerId).appendChild(row);
+      if (isChat) updateChatAttBadge();
+    }
+
+    function collectAttachmentsFromContainer(containerId) {
+      const res = [];
+      document.querySelectorAll(`#${containerId} .att-builder-row`).forEach(r => {
+        const file_id = r.querySelector('.att-id-inp').value.trim();
+        if (file_id) res.push({ type: r.querySelector('.att-type-inp').value, file_id });
+      });
+      return res;
+    }
+
+    function parseStepAttachments(s) {
+      if (s.media_type === 'multi' && s.file_id) {
+        try {
+          const arr = typeof s.file_id === 'string' ? JSON.parse(s.file_id) : s.file_id;
+          if (Array.isArray(arr)) return arr;
+        } catch (e) {}
+      }
+      return s.file_id ? [{ type: s.media_type || 'document', file_id: s.file_id }] : [];
+    }
+
+    function resetChatAttachments() {
+      $('chat-attachments-list').innerHTML = '';
+      addAttachmentRow('chat-attachments-list');
+      updateChatAttBadge();
+    }
+
+    // --- ФОРМАТИРОВАНИЕ ---
+    function initToolbars() {
+      document.querySelectorAll('[data-toolbar]').forEach(bar => {
+        const t = bar.getAttribute('data-toolbar');
+        bar.innerHTML = `
+          <button type="button" onclick="wrapTag('${t}', '<b>', '</b>')" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded font-bold">B</button>
+          <button type="button" onclick="wrapTag('${t}', '<i>', '</i>')" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded italic">I</button>
+          <button type="button" onclick="wrapTag('${t}', '<u>', '</u>')" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded underline">U</button>
+          <button type="button" onclick="wrapTag('${t}', '<s>', '</s>')" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded line-through">S</button>
+          <button type="button" onclick="wrapTag('${t}', '<tg-spoiler>', '</tg-spoiler>')" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded">Спойлер</button>
+          <button type="button" onclick="insertLink('${t}')" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-indigo-400">🔗</button>
+        `;
+      });
+    }
+
+    function wrapTag(elId, openTag, closeTag) {
+      const el = $(elId);
+      const start = el.selectionStart, end = el.selectionEnd;
+      const selected = el.value.substring(start, end) || "текст";
+      el.value = el.value.substring(0, start) + openTag + selected + closeTag + el.value.substring(end);
+      el.focus();
+    }
+
+    function insertLink(elId) {
+      const url = prompt("Введите адрес ссылки (https://...):", "https://");
+      if (url) wrapTag(elId, `<a href="${url}">`, `</a>`);
+    }
+
+    function renderTelegramHtml(raw) {
+      if (!raw) return "";
+      let safe = escapeHtml(raw);
+      safe = safe.replace(/&lt;(\/?(b|strong|i|em|u|ins|s|strike|del|code|pre|tg-spoiler))&gt;/gi, "<$1>");
+      return safe.replace(/&lt;a\s+href=(?:&quot;|&#39;)(https?:\/\/[^\s&"'<>]+)(?:&quot;|&#39;)&gt;([\s\S]*?)&lt;\/a&gt;/gi, '<a href="$1" target="_blank" rel="noopener">$2</a>');
+    }
+
+    // --- ПОЛЬЗОВАТЕЛИ И ЧАТ ---
+    async function loadUsers() {
+      try {
+        allUsers = await (await apiFetch("/api/users")).json();
+        $('users-count').innerText = `Подписчиков: ${allUsers.length}`;
+        renderUsersList();
+        if (currentChatId && allUsers.some(x => x.chat_id === currentChatId)) updateChatHeader();
+      } catch (e) {}
+    }
+
+    function renderUsersList() {
+      const query = ($('user-search')?.value || "").toLowerCase();
+      const filtered = allUsers.filter(u => (u.first_name + " " + u.username + " " + (u.source || "")).toLowerCase().includes(query));
+      $('users-list').innerHTML = filtered.map(u => {
+        const isUnread = (u.unread || 0) > 0 && u.chat_id !== currentChatId;
+        return `
+          <div onclick="selectUser(${u.chat_id})" class="p-3.5 cursor-pointer hover:bg-gray-800/60 transition flex justify-between items-start gap-2 ${currentChatId === u.chat_id ? 'bg-gray-800 border-l-2 border-indigo-500' : ''}">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-medium text-sm text-white truncate">${escapeHtml(u.first_name)}</span>
+                ${u.source ? `<span class="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 rounded">${escapeHtml(u.source)}</span>` : ''}
+                ${u.funnel_paused ? `<span class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 rounded" title="Воронка на паузе">⏸</span>` : ''}
+                ${u.banned ? `<span class="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 rounded">🚫 Бан</span>` : ''}
+              </div>
+              <div class="text-xs text-gray-400 mt-0.5 truncate">${u.username ? '@' + escapeHtml(u.username) : 'ID: ' + u.chat_id}</div>
+            </div>
+            ${isUnread ? `<span class="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">${u.unread}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateChatHeader() {
+      const u = allUsers.find(x => x.chat_id === currentChatId);
+      if (!u) return;
+      let tags = [];
+      try { tags = JSON.parse(u.tags || "[]"); } catch (e) {}
+      $('chat-header').innerHTML = `
+        <div class="flex items-center gap-2 min-w-0">
+          <button onclick="closeMobileChat()" class="md:hidden bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs px-2.5 py-1.5 rounded-lg border border-gray-700 shrink-0">← Назад</button>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-sm sm:text-base text-white truncate">${escapeHtml(u.first_name)}</span>
+              ${u.source ? `<span class="text-[11px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">${escapeHtml(u.source)}</span>` : ''}
+              ${u.banned ? `<span class="text-[11px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">Забанен</span>` : ''}
+            </div>
+            <div class="flex items-center gap-1.5 text-xs text-gray-400 flex-wrap">
+              <span>${u.username ? '@' + escapeHtml(u.username) : 'ID: ' + u.chat_id}</span>
+              ${tags.map(t => `<span class="bg-gray-800 text-emerald-400 px-1.5 rounded">#${escapeHtml(t)}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="userAction(${u.chat_id}, 'pause', ${u.funnel_paused ? 0 : 1})" class="text-[11px] sm:text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border transition ${u.funnel_paused ? 'bg-amber-600/20 border-amber-600 text-amber-300' : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'}">${u.funnel_paused ? '▶ Старт' : '⏸ Пауза'}</button>
+          <button onclick="toggleBanUser(${u.chat_id}, ${u.banned ? 0 : 1})" class="text-[11px] sm:text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border transition ${u.banned ? 'bg-red-600 text-white border-red-500' : 'bg-gray-800 border-gray-700 text-red-400 hover:bg-red-950/50'}">${u.banned ? '✅ Разбан' : '🚫 Бан'}</button>
+          <button onclick="deleteUser(${u.chat_id})" class="text-[11px] sm:text-xs px-2 sm:px-2.5 py-1.5 rounded-lg border bg-gray-800 border-gray-700 text-gray-400 hover:text-red-400 hover:border-red-800 transition" title="Полностью удалить пользователя">🗑️</button>
+        </div>
+      `;
+    }
+
+    async function selectUser(chatId) {
+      currentChatId = chatId;
+      const u = allUsers.find(x => x.chat_id === chatId);
+      if (u) u.unread = 0;
+      syncResponsiveChatLayout();
+      updateChatHeader();
+      renderUsersList();
+      $('input-area').classList.remove('hidden');
+      await loadMessages();
+    }
+
+    async function userAction(chatId, action, value) {
+      await apiPost("/api/user-action", { chat_id: chatId, action, value });
+      await loadUsers();
+    }
+
+    async function toggleBanUser(chatId, newVal) {
+      const msg = newVal === 1 ? "Забанить пользователя? Бот перестанет отвечать на его сообщения и исключит его из рассылок." : "Разбанить пользователя?";
+      if (confirm(msg)) await userAction(chatId, 'ban', newVal);
+    }
+
+    async function deleteUser(chatId) {
+      if (!confirm("Удалить пользователя и всю его переписку? Если он снова нажмёт /start, бот примет его как нового подписчика.")) return;
+      await userAction(chatId, 'delete', 1);
+      currentChatId = null;
+      syncResponsiveChatLayout();
+      $('chat-header').innerHTML = '<div class="text-gray-400 text-sm">Выберите подписчика слева, чтобы открыть диалог</div>';
+      $('messages-box').innerHTML = '';
+      $('input-area').classList.add('hidden');
+      await loadUsers();
+    }
+
+    function renderSingleMediaHtml(prefixedId) {
+      const fileUrl = `${API_URL}/api/file?file_id=${encodeURIComponent(prefixedId)}&token=${encodeURIComponent(sessionToken)}`;
+      if (prefixedId.startsWith('photo:')) return `<a href="${fileUrl}" target="_blank" class="block"><img src="${fileUrl}" alt="Фото" class="max-h-56 rounded-lg border border-black/20"></a>`;
+      if (prefixedId.startsWith('video_note:')) return `<a href="${fileUrl}" target="_blank" class="inline-block text-xs underline opacity-90 hover:opacity-100 font-mono bg-black/25 px-2.5 py-1 rounded">🎥 Открыть видео-кружочек</a>`;
+      if (prefixedId.startsWith('voice:') || prefixedId.startsWith('audio:')) return `<a href="${fileUrl}" target="_blank" class="inline-block text-xs underline opacity-90 hover:opacity-100 font-mono bg-black/25 px-2.5 py-1 rounded">🎵 Прослушать / скачать аудио</a>`;
+      return `<a href="${fileUrl}" target="_blank" class="inline-block text-xs underline opacity-90 hover:opacity-100 font-mono bg-black/25 px-2.5 py-1 rounded">📎 Открыть / скачать файл</a>`;
+    }
+
+    async function loadMessages() {
+      if (!currentChatId) return;
+      try {
+        const msgs = await (await apiFetch(`/api/messages?chat_id=${currentChatId}`)).json();
+        const box = $('messages-box');
+        box.innerHTML = msgs.map(m => {
+          const isAdmin = m.sender === 'admin';
+          const time = new Date(m.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          let mediaHtml = '';
+          if (m.file_id) {
+            if (m.file_id.startsWith('multi:')) {
+              try {
+                mediaHtml = `<div class="space-y-1.5 mb-1.5">${JSON.parse(m.file_id.slice(6)).map(it => renderSingleMediaHtml(`${it.type}:${it.file_id}`)).join('')}</div>`;
+              } catch (e) {}
+            } else {
+              mediaHtml = `<div class="mb-1.5">${renderSingleMediaHtml(m.file_id)}</div>`;
+            }
+          }
+          const hideCaption = m.file_id && m.file_id.startsWith('photo:') && m.text === '[Фото]';
+          return `
+            <div class="flex flex-col ${isAdmin ? 'items-end' : 'items-start'}">
+              <div class="max-w-[85%] sm:max-w-lg rounded-2xl px-3.5 sm:px-4 py-2 sm:py-2.5 text-sm ${isAdmin ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-100'}">
+                ${mediaHtml}
+                ${!hideCaption ? `<div class="whitespace-pre-wrap break-words tg-html">${renderTelegramHtml(m.text)}</div>` : ''}
+              </div>
+              <span class="text-[10px] text-gray-500 mt-1 px-1">${time}</span>
+            </div>
+          `;
+        }).join('');
+        box.scrollTop = box.scrollHeight;
+      } catch (e) {}
+    }
+
+    async function sendMessage() {
+      if (!currentChatId) return;
+      const textInput = $('message-input');
+      const attachments = collectAttachmentsFromContainer('chat-attachments-list');
+      const btn = $('send-btn');
+      const text = textInput.value.trim();
+      if (!text && attachments.length === 0) return;
+
+      btn.disabled = true;
+      btn.innerText = '…';
+      await apiPost("/api/send", { chat_id: currentChatId, text, attachments });
+      textInput.value = '';
+      textInput.style.height = 'auto';
+      resetChatAttachments();
+      $('chat-att-drawer').classList.add('hidden');
+      $('chat-att-toggle').classList.remove('border-indigo-500');
+      btn.disabled = false;
+      btn.innerText = '➤';
+      await loadMessages();
+    }
+
+    // --- КОНСТРУКТОР ВОРОНКИ ---
+    async function fetchFunnelSteps() {
+      allSteps = await (await apiFetch("/api/funnel")).json();
+      allSteps.forEach(s => {
+        try { s.parsedButtons = typeof s.buttons === 'string' ? JSON.parse(s.buttons) : (s.buttons || []); } catch (e) { s.parsedButtons = []; }
+        s.parsedAttachments = parseStepAttachments(s);
+      });
+    }
+
+    async function openFunnelModal() {
+      await Promise.all([fetchFunnelSteps(), fetchBoardMeta()]);
+      if (window.innerWidth < 768 && boardScale === 1) {
+        boardScale = 0.7;
+        $('zoom-label').innerText = '70%';
+        applyBoardTransform();
+      }
+      setFunnelViewMode(funnelViewMode);
+      openModal('funnel-modal');
+      setTimeout(renderFunnelViews, 30);
+    }
+
+    function setFunnelViewMode(mode) {
+      funnelViewMode = mode;
+      $('funnel-board-view').classList.toggle('hidden', mode !== 'board');
+      $('funnel-list-view').classList.toggle('hidden', mode !== 'list');
+      $('zoom-controls').classList.toggle('hidden', mode !== 'board');
+      $('mode-board-btn').className = mode === 'board'
+        ? 'px-2.5 sm:px-3 py-1 rounded-md bg-indigo-600 text-white font-medium transition'
+        : 'px-2.5 sm:px-3 py-1 rounded-md text-gray-400 hover:text-white transition';
+      $('mode-list-btn').className = mode === 'list'
+        ? 'px-2.5 sm:px-3 py-1 rounded-md bg-indigo-600 text-white font-medium transition'
+        : 'px-2.5 sm:px-3 py-1 rounded-md text-gray-400 hover:text-white transition';
+      renderFunnelViews();
+    }
+
+    function formatDurationParts(days, hours, minutes) {
+      const parts = [];
+      if (Number(days) > 0) parts.push(`${days}д`);
+      if (Number(hours) > 0) parts.push(`${hours}ч`);
+      if (Number(minutes) > 0) parts.push(`${minutes}м`);
+      return parts.length > 0 ? `через ${parts.join(' ')}` : 'сразу';
+    }
+
+    function formatDelayShort(s) {
+      return s.msk_time ? `день ${s.delay_days} в ${s.msk_time} МСК` : formatDurationParts(s.delay_days, s.delay_hours, s.delay_minutes);
+    }
+
+    function formatFallbackDelay(fb) {
+      return formatDurationParts(fb.days, fb.hours, fb.minutes);
+    }
+
+    function findInboundButtonSource(stepId) {
+      for (const s of allSteps) {
+        for (let i = 0; i < s.parsedButtons.length; i++) {
+          const b = s.parsedButtons[i];
+          if (b.type === 'step' && String(b.value) === String(stepId)) return { step: s, btnIdx: i, btn: b };
+        }
+      }
+      return null;
+    }
+
+    function findInboundFallbackSource(stepId) {
+      for (const s of allSteps) {
+        if (s.parsedButtons.length === 0) continue;
+        const fb = parseFallbackCfg(s);
+        if (fb && String(fb.target_id) === String(stepId)) return { step: s, fb };
+      }
+      return null;
+    }
+
+    function getStepBadgeText(s) {
+      const defStart = getDefaultStartStep();
+      if ((defStart && Number(defStart.id) === Number(s.id) && s.trigger_type === 'button') || s.trigger_type === 'start_default') return '🚀 Старт (/start)';
+      if (s.trigger_type === 'start_source') return `🔗 Старт: ${s.trigger_value}`;
+      if (s.trigger_type === 'after_step') return `➡️ После #${getStepDisplayNum(s.trigger_value)} (${formatDelayShort(s)})`;
+      if (s.trigger_type === 'not_clicked') return `⏳ Не нажал #${getStepDisplayNum(s.trigger_value)} (${formatDelayShort(s)})`;
+      if (s.trigger_type === 'relative') return `⏱ После /start (${formatDelayShort(s)})`;
+      if (s.trigger_type === 'msk_time') return `🕒 От /start: день ${s.delay_days} в ${s.msk_time} МСК`;
+      const inFb = findInboundFallbackSource(s.id);
+      if (inFb) return `⏳ Не нажали в #${getStepDisplayNum(inFb.step.id)} (${formatFallbackDelay(inFb.fb)})`;
+      const inBtn = findInboundButtonSource(s.id);
+      if (inBtn) return `🔘 Кнопка «${inBtn.btn.text}» из #${getStepDisplayNum(inBtn.step.id)}`;
+      return '👆 По стрелке / кнопке';
+    }
+
+    function getStepMediaBadge(s) {
+      const count = s.parsedAttachments.length;
+      if (count === 0) return '';
+      return count === 1
+        ? `<span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded">📎 ${s.parsedAttachments[0].type}</span>`
+        : `<span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded">📎 ${count} файла(ов)</span>`;
+    }
+
+    function getAllUtmSlugs() {
+      const set = new Set(boardMeta.utm_slugs || []);
+      Object.keys(boardMeta.utm_links || {}).forEach(k => set.add(k));
+      allSteps.forEach(s => { if (s.trigger_type === 'start_source' && s.trigger_value) set.add(s.trigger_value); });
+      return Array.from(set);
+    }
+
+    function renderFunnelViews() {
+      renderFunnelList();
+      renderFunnelBoard();
+    }
+
+    function renderFunnelList() {
+      const box = $('funnel-list-container');
+      const defaultStep = getDefaultStartStep();
+      const startBanner = `
+        <div class="bg-emerald-950/30 border border-emerald-800/60 rounded-2xl p-3.5 sm:p-4 flex flex-wrap justify-between items-center gap-2">
+          <div>
+            <div class="text-sm font-bold text-emerald-300">🚀 Точка входа: /start</div>
+            <div class="text-xs text-gray-400 mt-0.5">${defaultStep ? `По умолчанию запускается: <b class="text-white">#${getStepDisplayNum(defaultStep.id)} ${escapeHtml(defaultStep.title)}</b>` : 'Не назначен шаг по умолчанию'}</div>
+          </div>
+          <button onclick="openStepEditor(null, 'start_default')" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg">Назначить стартовый шаг</button>
+        </div>
+      `;
+      if (allSteps.length === 0) {
+        box.innerHTML = startBanner + '<div class="text-center text-gray-500 text-sm py-10">Шагов пока нет. Создайте первый шаг.</div>';
+        return;
+      }
+      box.innerHTML = startBanner + allSteps.map((s, idx) => {
+        const hasButtons = s.parsedButtons.length > 0;
+        const fbCfg = hasButtons ? parseFallbackCfg(s) : null;
+        return `
+          <div class="bg-gray-900 border border-gray-800 rounded-2xl p-3.5 sm:p-4 space-y-2.5">
+            <div class="flex flex-wrap justify-between items-start gap-2">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-xs font-bold bg-indigo-600 text-white px-2 py-0.5 rounded">#${idx + 1} ${escapeHtml(s.title)}</span>
+                <span class="text-xs bg-gray-800 text-indigo-300 border border-gray-700 px-2 py-0.5 rounded">${getStepBadgeText(s)}</span>
+                <span class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded" title="Уникальных получателей">👁 ${s.views_count || 0}</span>
+                ${getStepMediaBadge(s)}
+                ${s.require_sub ? `<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">🔒 Подписка</span>` : ''}
+                ${s.delete_prev ? `<span class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded" title="Удаляет прошлое сообщение">🗑 Меню</span>` : ''}
+              </div>
+              <div class="flex gap-1.5 shrink-0">
+                <button onclick="testStepInTelegram(${s.id})" class="text-xs bg-indigo-600/20 hover:bg-indigo-600/35 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-lg">🧪 Тест</button>
+                <button onclick="openStepEditor(${s.id})" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1 rounded-lg">✏️ Изменить</button>
+                <button onclick="deleteStep(${s.id})" class="text-xs bg-red-950/50 hover:bg-red-900/60 text-red-400 px-2.5 py-1 rounded-lg">🗑️</button>
+              </div>
+            </div>
+            <div class="text-sm text-gray-200 whitespace-pre-wrap break-words tg-html">${renderTelegramHtml(s.text || '[Только вложения]')}</div>
+            ${hasButtons ? `
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                ${s.parsedButtons.map((b, bIdx) => `
+                  <div class="inline-flex items-center gap-1.5 text-xs bg-gray-800 border border-gray-700 text-emerald-300 px-2.5 py-1 rounded-lg">
+                    <span>🔘 ${escapeHtml(b.text)} ${b.type === 'step' ? (b.value ? `→ Шаг #${getStepDisplayNum(b.value)}` : '(не связ.)') : (b.type === 'consult' ? '→ 📅 Консультация' : '→ Ссылка')} • 👆 ${b.clicks || 0}</span>
+                    ${b.type === 'step' && !b.value ? `<button type="button" onclick="openStepEditorFromButton(${s.id}, ${bIdx})" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded ml-1">+ Шаг</button>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+              <div class="pt-0.5">
+                ${fbCfg ? `<span onclick="openQuickTimer('fallback', ${s.id})" class="inline-flex items-center gap-1.5 text-[11px] bg-amber-950/40 border border-amber-800/50 text-amber-300 px-2.5 py-1 rounded-lg cursor-pointer">⏱ Если не нажал → Шаг #${getStepDisplayNum(fbCfg.target_id)} (${formatFallbackDelay(fbCfg)}) ✏️</span>` : `<button type="button" onclick="openStepEditorForFallback(${s.id})" class="text-[11px] bg-amber-950/30 hover:bg-amber-900/40 border border-amber-800/40 text-amber-300/90 px-2.5 py-1 rounded-lg">+ Добавить дожим «Если не нажал»</button>`}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderFunnelBoard() {
+      const defaultStep = getDefaultStartStep();
+      const utmSlugs = getAllUtmSlugs();
+      const startCardHtml = `
+        <div id="start-card" style="left: ${boardMeta.start_x || 40}px; top: ${boardMeta.start_y || 120}px;" class="pointer-events-auto absolute w-64 bg-gray-900 border-2 border-emerald-600/80 rounded-2xl shadow-xl">
+          <div onmousedown="startStartCardDrag(event)" ontouchstart="startStartCardDrag(event)" class="bg-emerald-950/80 px-3.5 py-2.5 rounded-t-xl flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-emerald-800/60">
+            <div class="font-bold text-xs text-emerald-300">🚀 СТАРТ (/start)</div>
+            <button onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="addUtmPortPrompt()" class="text-[11px] bg-emerald-700/50 hover:bg-emerald-600/60 text-emerald-100 px-2 py-0.5 rounded" title="Добавить выход для UTM-ссылки">+ UTM</button>
+          </div>
+          <div class="p-3 space-y-2 text-xs">
+            <div class="relative bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 flex justify-between items-center">
+              <span class="text-gray-200 font-medium">По умолчанию</span>
+              <span class="text-[10px] text-emerald-400 mr-2">${defaultStep ? `#${getStepDisplayNum(defaultStep.id)}` : 'не связ.'}</span>
+              <div onmousedown="startWireDrag(event, 'START_DEFAULT', 0)" ontouchstart="startWireDrag(event, 'START_DEFAULT', 0)" data-start-port="default" title="Потяните к карточке первого шага" class="w-4 h-4 rounded-full bg-emerald-400 hover:bg-emerald-300 border-2 border-gray-900 absolute -right-2 cursor-crosshair"></div>
+            </div>
+            ${utmSlugs.map(slug => {
+              const linked = getUtmLinkedStep(slug);
+              return `
+                <div class="relative bg-gray-800/80 border border-gray-700 rounded-lg px-2.5 py-1.5 flex justify-between items-center">
+                  <div class="flex items-center gap-1 min-w-0">
+                    <button onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="removeUtmPort('${escapeHtml(slug)}')" class="text-gray-500 hover:text-red-400 text-[10px]">✕</button>
+                    <span class="text-indigo-300 truncate">UTM: ${escapeHtml(slug)}</span>
+                  </div>
+                  <span class="text-[10px] text-gray-400 mr-2 shrink-0">${linked ? `#${getStepDisplayNum(linked.id)}` : 'не связ.'}</span>
+                  <div onmousedown="startWireDrag(event, 'START_UTM:${escapeHtml(slug)}', 0)" ontouchstart="startWireDrag(event, 'START_UTM:${escapeHtml(slug)}', 0)" data-start-port="utm:${escapeHtml(slug)}" title="Потяните к карточке для трафика ${escapeHtml(slug)}" class="w-4 h-4 rounded-full bg-indigo-400 hover:bg-indigo-300 border-2 border-gray-900 absolute -right-2 cursor-crosshair"></div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+
+      const stepCardsHtml = allSteps.map((s, idx) => {
+        const hasButtons = s.parsedButtons.length > 0;
+        const fbCfg = hasButtons ? parseFallbackCfg(s) : null;
+        const nextSteps = !hasButtons ? allSteps.filter(x => x.trigger_type === 'after_step' && String(x.trigger_value) === String(s.id)) : [];
+        return `
+          <div id="step-card-${s.id}" data-step-id="${s.id}" style="left: ${s.pos_x || 380}px; top: ${s.pos_y || 100}px;" class="funnel-card pointer-events-auto absolute w-72 bg-gray-900 border-2 border-gray-700 hover:border-indigo-500/70 rounded-2xl shadow-xl transition-colors">
+            <div data-input-port="${s.id}" title="Перетащите сюда стрелку" class="w-4 h-4 rounded-full bg-emerald-500 border-2 border-gray-900 absolute -left-2 top-5 cursor-crosshair"></div>
+            <div onmousedown="startCardDrag(event, ${s.id})" ontouchstart="startCardDrag(event, ${s.id})" class="bg-gray-800/90 px-3.5 py-2.5 rounded-t-xl flex justify-between items-center cursor-grab active:cursor-grabbing border-b border-gray-700/80">
+              <div class="font-bold text-xs text-white truncate pr-2">#${idx + 1} ${escapeHtml(s.title)}</div>
+              <div class="flex items-center gap-1 shrink-0">
+                <span class="text-[10px] text-gray-400 bg-gray-900/80 px-1.5 py-0.5 rounded mr-0.5" title="Уникальных просмотров">👁 ${s.views_count || 0}</span>
+                <button onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="testStepInTelegram(${s.id})" class="text-xs hover:bg-indigo-600/40 text-indigo-300 p-1 rounded" title="Тестировать этот шаг в Telegram">🧪</button>
+                <button onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openStepEditor(${s.id})" class="text-xs hover:bg-gray-700 p-1 rounded" title="Редактировать">✏️</button>
+                <button onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="deleteStep(${s.id})" class="text-xs hover:bg-red-900/60 text-red-400 p-1 rounded" title="Удалить">🗑️</button>
+              </div>
+            </div>
+            <div class="p-3 space-y-2 text-xs">
+              <div class="flex flex-wrap gap-1">
+                <span class="bg-indigo-600/30 text-indigo-300 px-2 py-0.5 rounded text-[11px]">${getStepBadgeText(s)}</span>
+                ${getStepMediaBadge(s)}
+                ${s.require_sub ? `<span class="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[11px]" title="Проверка подписки">🔒</span>` : ''}
+                ${s.delete_prev ? `<span class="bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded text-[11px]" title="Удаляет прошлое сообщение">🗑</span>` : ''}
+              </div>
+              <div class="text-gray-300 line-clamp-3 whitespace-pre-wrap tg-html">${renderTelegramHtml(s.text || '[Только вложения]')}</div>
+              ${hasButtons ? `
+                <div class="space-y-1.5 pt-1 border-t border-gray-800">
+                  ${s.parsedButtons.map((b, bIdx) => `
+                    <div class="relative bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 flex justify-between items-center gap-1">
+                      <span class="truncate text-gray-200">${escapeHtml(b.text)}</span>
+                      <div class="flex items-center gap-1.5 shrink-0 ${b.type === 'step' ? 'mr-2' : ''}">
+                        <span class="text-[10px] text-indigo-300/80" title="Кликов по кнопке">👆${b.clicks || 0}</span>
+                        <span class="text-[10px] text-gray-400">${b.type === 'url' ? '🔗' : (b.type === 'consult' ? '📅' : (b.value ? `#${getStepDisplayNum(b.value)}` : '—'))}</span>
+                      </div>
+                      ${b.type === 'step' ? `<div onmousedown="startWireDrag(event, ${s.id}, ${bIdx})" ontouchstart="startWireDrag(event, ${s.id}, ${bIdx})" data-out-step="${s.id}" data-out-btn="${bIdx}" title="Потяните к карточке, чтобы связать" class="w-4 h-4 rounded-full bg-indigo-500 hover:bg-indigo-400 border-2 border-gray-900 absolute -right-2 cursor-crosshair"></div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+                <div onclick="openQuickTimer('fallback', ${s.id})" title="Нажмите, чтобы быстро изменить время дожима" class="relative bg-amber-950/30 hover:bg-amber-900/40 border border-amber-800/50 rounded-lg px-2.5 py-1.5 flex justify-between items-center mt-1 cursor-pointer transition">
+                  <span class="text-amber-300/95 text-[11px]">⏱ Если не нажал</span>
+                  <span class="text-[10px] text-amber-300 underline decoration-dotted mr-2">${fbCfg ? `#${getStepDisplayNum(fbCfg.target_id)} (${formatFallbackDelay(fbCfg)})` : 'не связ.'}</span>
+                  <div onmousedown="startWireDrag(event, 'FALLBACK:${s.id}', 0)" ontouchstart="startWireDrag(event, 'FALLBACK:${s.id}', 0)" onclick="event.stopPropagation()" data-fallback-step="${s.id}" title="Потяните к карточке дожима, если кнопку не нажали" class="w-4 h-4 rounded-full bg-amber-500 hover:bg-amber-400 border-2 border-gray-900 absolute -right-2 cursor-crosshair"></div>
+                </div>
+              ` : `
+                <div onclick="openQuickTimer('after', ${s.id})" title="Нажмите, чтобы быстро задать паузу или время по МСК перед следующим шагом" class="relative bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-800/50 rounded-lg px-2.5 py-1.5 flex justify-between items-center mt-1 cursor-pointer transition">
+                  <span class="text-emerald-300/95 text-[11px]">➡️ Далее после отправки</span>
+                  <span class="text-[10px] text-emerald-300 underline decoration-dotted mr-2">${nextSteps.length > 0 ? nextSteps.map(nx => `#${getStepDisplayNum(nx.id)} (${formatDelayShort(nx)})`).join(', ') : 'не связ.'}</span>
+                  <div onmousedown="startWireDrag(event, 'NEXT:${s.id}', 0)" ontouchstart="startWireDrag(event, 'NEXT:${s.id}', 0)" onclick="event.stopPropagation()" data-next-step="${s.id}" title="Потяните к следующему шагу" class="w-4 h-4 rounded-full bg-emerald-400 hover:bg-emerald-300 border-2 border-gray-900 absolute -right-2 cursor-crosshair"></div>
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      $('board-cards').innerHTML = startCardHtml + stepCardsHtml;
+      drawBoardConnections();
+    }
+
+    // --- БЫСТРАЯ НАСТРОЙКА ТАЙМЕРА ---
+    function openQuickTimer(kind, sourceStepId) {
+      const srcStep = allSteps.find(x => Number(x.id) === Number(sourceStepId));
+      if (!srcStep) return;
+      $('qt-kind').value = kind;
+      $('qt-step-id').value = sourceStepId;
+      if (kind === 'fallback') {
+        const fbCfg = parseFallbackCfg(srcStep);
+        if (!fbCfg) return alert("Сначала протяните оранжевую стрелку «Если не нажал» к нужному шагу, а затем кликните сюда для настройки времени!");
+        $('qt-title').innerText = `⏱ Дожим после шага #${getStepDisplayNum(sourceStepId)}`;
+        $('qt-mode-wrap').classList.add('hidden');
+        $('qt-rel-box').classList.remove('hidden');
+        $('qt-msk-box').classList.add('hidden');
+        $('qt-days').value = fbCfg.days ?? 1;
+        $('qt-hours').value = fbCfg.hours ?? 0;
+        $('qt-mins').value = fbCfg.minutes ?? 0;
+        openModal('quick-timer-modal');
+      } else if (kind === 'after') {
+        const nextSteps = allSteps.filter(x => x.trigger_type === 'after_step' && String(x.trigger_value) === String(sourceStepId));
+        if (nextSteps.length === 0) return alert("Сначала протяните зелёную стрелку «Далее после отправки» к следующему шагу!");
+        const target = nextSteps[0];
+        $('qt-title').innerText = `➡️ Переход к шагу #${getStepDisplayNum(target.id)}`;
+        $('qt-mode-wrap').classList.remove('hidden');
+        let mode = 'instant';
+        if (target.msk_time) mode = 'msk';
+        else if ((Number(target.delay_days) || 0) > 0 || (Number(target.delay_hours) || 0) > 0 || (Number(target.delay_minutes) || 0) > 0) mode = 'delay';
+        $('qt-mode').value = mode;
+        $('qt-days').value = target.delay_days || 0;
+        $('qt-hours').value = target.delay_hours || 0;
+        $('qt-mins').value = target.delay_minutes || 0;
+        $('qt-msk-days').value = target.delay_days || 1;
+        $('qt-msk-time').value = target.msk_time || '19:00';
+        toggleQuickTimerModeUI();
+        openModal('quick-timer-modal');
+      }
+    }
+
+    function toggleQuickTimerModeUI() {
+      const mode = $('qt-mode').value;
+      $('qt-rel-box').classList.toggle('hidden', mode !== 'delay');
+      $('qt-msk-box').classList.toggle('hidden', mode !== 'msk');
+    }
+
+    async function saveQuickTimer() {
+      const kind = $('qt-kind').value;
+      const sourceStepId = Number($('qt-step-id').value);
+      const srcStep = allSteps.find(x => Number(x.id) === Number(sourceStepId));
+      if (!srcStep) return;
+
+      if (kind === 'fallback') {
+        const fbCfg = parseFallbackCfg(srcStep);
+        if (!fbCfg) return;
+        const days = Math.max(0, Number($('qt-days').value) || 0);
+        const hours = Math.max(0, Number($('qt-hours').value) || 0);
+        const minutes = Math.max(0, Number($('qt-mins').value) || 0);
+        if (fbCfg.is_legacy) {
+          const target = allSteps.find(x => Number(x.id) === Number(fbCfg.target_id));
+          if (target) {
+            target.trigger_type = 'button';
+            target.trigger_value = '';
+            await saveStepObject(target);
+          }
+        }
+        srcStep.fallback_cfg = JSON.stringify({ target_id: fbCfg.target_id, days, hours, minutes });
+        await saveStepObject(srcStep);
+      } else if (kind === 'after') {
+        const nextSteps = allSteps.filter(x => x.trigger_type === 'after_step' && String(x.trigger_value) === String(sourceStepId));
+        const mode = $('qt-mode').value;
+        for (const target of nextSteps) {
+          if (mode === 'instant') {
+            target.delay_days = 0; target.delay_hours = 0; target.delay_minutes = 0; target.msk_time = '';
+          } else if (mode === 'delay') {
+            target.delay_days = Math.max(0, Number($('qt-days').value) || 0);
+            target.delay_hours = Math.max(0, Number($('qt-hours').value) || 0);
+            target.delay_minutes = Math.max(0, Number($('qt-mins').value) || 0);
+            target.msk_time = '';
+          } else if (mode === 'msk') {
+            target.delay_days = Math.max(0, Number($('qt-msk-days').value) || 0);
+            target.delay_hours = 0; target.delay_minutes = 0;
+            target.msk_time = $('qt-msk-time').value || '19:00';
+          }
+          await saveStepObject(target);
+        }
+      }
+      closeModal('quick-timer-modal');
+      await fetchFunnelSteps();
+      renderFunnelViews();
+    }
+
+    function drawBoardConnections(tempLine = null) {
+      const svg = $('board-svg');
+      const world = $('board-world');
+      if (!svg || !world) return;
+      const worldRect = world.getBoundingClientRect();
+      let paths = `
+        <defs>
+          <marker id="arrow-indigo" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6366f1" /></marker>
+          <marker id="arrow-emerald" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#10b981" /></marker>
+          <marker id="arrow-amber" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f59e0b" /></marker>
+        </defs>
+      `;
+
+      function buildWireMarkup(outEl, inEl, color, markerId, disconnectFnCall, curveOffset = 0) {
+        if (!outEl || !inEl) return '';
+        const r1 = outEl.getBoundingClientRect(), r2 = inEl.getBoundingClientRect();
+        const x1 = (r1.left + r1.width / 2 - worldRect.left) / boardScale;
+        const y1 = (r1.top + r1.height / 2 - worldRect.top) / boardScale;
+        const x2 = (r2.left + r2.width / 2 - worldRect.left) / boardScale;
+        const y2 = (r2.top + r2.height / 2 - worldRect.top) / boardScale;
+        const dx = Math.max(Math.abs(x2 - x1) * 0.5, 50);
+        const d = `M ${x1} ${y1} C ${x1 + dx} ${y1 + curveOffset}, ${x2 - dx} ${y2 + curveOffset}, ${x2} ${y2}`;
+        const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2 + curveOffset * 0.6;
+        return `
+          <g class="wire-group pointer-events-auto cursor-pointer" onclick="${disconnectFnCall}">
+            <path d="${d}" stroke="transparent" stroke-width="22" fill="none" />
+            <path class="wire-visible transition-colors" d="${d}" stroke="${color}" stroke-width="2.5" fill="none" marker-end="url(#${markerId})" />
+            <g class="wire-del-badge opacity-95 transition" transform="translate(${midX}, ${midY})">
+              <circle r="11" fill="#1f2937" stroke="#ef4444" stroke-width="1.5" />
+              <text text-anchor="middle" dy="3.5" fill="#f87171" font-size="11" font-weight="bold">✕</text>
+            </g>
+          </g>
+        `;
+      }
+
+      const defaultStep = getDefaultStartStep();
+      if (defaultStep) {
+        paths += buildWireMarkup(document.querySelector('[data-start-port="default"]'), document.querySelector(`[data-input-port="${defaultStep.id}"]`), '#10b981', 'arrow-emerald', `disconnectStartDefault()`, -12);
+      }
+      getAllUtmSlugs().forEach(slug => {
+        const linked = getUtmLinkedStep(slug);
+        if (linked) {
+          paths += buildWireMarkup(document.querySelector(`[data-start-port="utm:${CSS.escape(slug)}"]`), document.querySelector(`[data-input-port="${linked.id}"]`), '#10b981', 'arrow-emerald', `disconnectStartUtm('${escapeHtml(slug)}')`);
+        }
+      });
+      allSteps.forEach(s => {
+        if (s.parsedButtons.length === 0) return;
+        const fbCfg = parseFallbackCfg(s);
+        if (fbCfg && fbCfg.target_id) {
+          paths += buildWireMarkup(document.querySelector(`[data-fallback-step="${s.id}"]`), document.querySelector(`[data-input-port="${fbCfg.target_id}"]`), '#f59e0b', 'arrow-amber', `disconnectFallback(${s.id})`, 26);
+        }
+      });
+      allSteps.filter(s => s.trigger_type === 'after_step' && s.trigger_value).forEach(s => {
+        const outPort = document.querySelector(`[data-next-step="${s.trigger_value}"]`) || $(`step-card-${s.trigger_value}`);
+        paths += buildWireMarkup(outPort, document.querySelector(`[data-input-port="${s.id}"]`), '#10b981', 'arrow-emerald', `disconnectTrigger(${s.id})`, 16);
+      });
+      allSteps.forEach(s => {
+        s.parsedButtons.forEach((b, idx) => {
+          if (b.type === 'step' && b.value) {
+            paths += buildWireMarkup(document.querySelector(`[data-out-step="${s.id}"][data-out-btn="${idx}"]`), document.querySelector(`[data-input-port="${b.value}"]`), '#6366f1', 'arrow-indigo', `disconnectButton(${s.id}, ${idx})`, -14);
+          }
+        });
+      });
+      if (tempLine) {
+        const dx = Math.max(Math.abs(tempLine.x2 - tempLine.x1) * 0.5, 40);
+        paths += `<path d="M ${tempLine.x1} ${tempLine.y1} C ${tempLine.x1 + dx} ${tempLine.y1}, ${tempLine.x2 - dx} ${tempLine.y2}, ${tempLine.x2} ${tempLine.y2}" stroke="#34d399" stroke-width="2.5" stroke-dasharray="5,5" fill="none" />`;
+      }
+      svg.innerHTML = paths;
+    }
+
+    function startStartCardDrag(e) {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      e.stopPropagation();
+      const card = $('start-card');
+      const pt0 = getClientXY(e);
+      const origX = boardMeta.start_x || 40, origY = boardMeta.start_y || 120;
+      attachDragListeners(
+        pt => {
+          boardMeta.start_x = Math.max(10, Math.round(origX + (pt.x - pt0.x) / boardScale));
+          boardMeta.start_y = Math.max(10, Math.round(origY + (pt.y - pt0.y) / boardScale));
+          card.style.left = boardMeta.start_x + 'px';
+          card.style.top = boardMeta.start_y + 'px';
+          drawBoardConnections();
+        },
+        () => saveBoardMeta()
+      );
+    }
+
+    async function addUtmPortPrompt() {
+      const raw = prompt("Введите латиницей метку источника (например: youtube или threads):", "");
+      if (!raw) return;
+      const slug = raw.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!slug) return;
+      if (!boardMeta.utm_slugs.includes(slug)) {
+        boardMeta.utm_slugs.push(slug);
+        await saveBoardMeta();
+      }
+      renderFunnelViews();
+    }
+
+    async function removeUtmPort(slug) {
+      if (!confirm(`Убрать UTM-выход «${slug}»?`)) return;
+      boardMeta.utm_slugs = boardMeta.utm_slugs.filter(x => x !== slug);
+      if (boardMeta.utm_links) delete boardMeta.utm_links[slug];
+      await saveBoardMeta();
+      const linked = allSteps.find(s => s.trigger_type === 'start_source' && s.trigger_value === slug);
+      if (linked) {
+        linked.trigger_type = 'button';
+        linked.trigger_value = '';
+        await saveStepObject(linked);
+      }
+      renderFunnelViews();
+    }
+
+    function startCardDrag(e, stepId) {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      e.stopPropagation();
+      const step = allSteps.find(x => x.id === stepId);
+      const card = $(`step-card-${stepId}`);
+      const pt0 = getClientXY(e);
+      const origX = step.pos_x || 380, origY = step.pos_y || 100;
+      attachDragListeners(
+        pt => {
+          step.pos_x = Math.max(10, origX + (pt.x - pt0.x) / boardScale);
+          step.pos_y = Math.max(10, origY + (pt.y - pt0.y) / boardScale);
+          card.style.left = step.pos_x + 'px';
+          card.style.top = step.pos_y + 'px';
+          drawBoardConnections();
+        },
+        () => apiPost("/api/funnel/pos", { id: stepId, pos_x: step.pos_x, pos_y: step.pos_y })
+      );
+    }
+
+    function startWireDrag(e, sourceKey, btnIdx) {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      const worldRect = $('board-world').getBoundingClientRect();
+      const r1 = e.target.getBoundingClientRect();
+      const x1 = (r1.left + r1.width / 2 - worldRect.left) / boardScale;
+      const y1 = (r1.top + r1.height / 2 - worldRect.top) / boardScale;
+
+      attachDragListeners(
+        pt => drawBoardConnections({ x1, y1, x2: (pt.x - worldRect.left) / boardScale, y2: (pt.y - worldRect.top) / boardScale }),
+        async (pt, ev) => {
+          const dropEl = ev.type === 'touchend' ? document.elementFromPoint(pt.x, pt.y) : ev.target;
+          const targetCard = dropEl ? dropEl.closest('.funnel-card') : null;
+          if (targetCard) {
+            const targetStepId = Number(targetCard.getAttribute('data-step-id'));
+            const targetStep = allSteps.find(x => x.id === targetStepId);
+            if (targetStep) {
+              if (sourceKey === 'START_DEFAULT') {
+                boardMeta.default_step_id = targetStepId;
+                await saveBoardMeta();
+                return renderFunnelViews();
+              }
+              if (String(sourceKey).startsWith('START_UTM:')) {
+                const slug = String(sourceKey).replace('START_UTM:', '');
+                if (!boardMeta.utm_links) boardMeta.utm_links = {};
+                boardMeta.utm_links[slug] = targetStepId;
+                await saveBoardMeta();
+                return renderFunnelViews();
+              }
+              if (String(sourceKey).startsWith('FALLBACK:')) {
+                const fromId = Number(String(sourceKey).replace('FALLBACK:', ''));
+                const srcStep = allSteps.find(x => x.id === fromId);
+                if (srcStep && fromId !== targetStepId) {
+                  const prevFb = parseFallbackCfg(srcStep);
+                  if (prevFb && prevFb.is_legacy) {
+                    const legacyT = allSteps.find(x => Number(x.id) === Number(prevFb.target_id));
+                    if (legacyT) { legacyT.trigger_type = 'button'; legacyT.trigger_value = ''; await saveStepObject(legacyT); }
+                  }
+                  srcStep.fallback_cfg = JSON.stringify({
+                    target_id: targetStepId,
+                    days: prevFb ? prevFb.days : 1,
+                    hours: prevFb ? prevFb.hours : 0,
+                    minutes: prevFb ? prevFb.minutes : 0
+                  });
+                  await saveStepObject(srcStep);
+                  return renderFunnelViews();
+                }
+              }
+              if (String(sourceKey).startsWith('NEXT:')) {
+                const fromId = Number(String(sourceKey).replace('NEXT:', ''));
+                if (fromId !== targetStepId) {
+                  if (targetStep.trigger_type === 'start_default') {
+                    boardMeta.default_step_id = targetStepId;
+                    await saveBoardMeta();
+                  } else if (targetStep.trigger_type === 'start_source' && targetStep.trigger_value) {
+                    if (!boardMeta.utm_links) boardMeta.utm_links = {};
+                    boardMeta.utm_links[targetStep.trigger_value] = targetStepId;
+                    await saveBoardMeta();
+                  }
+                  targetStep.trigger_type = 'after_step';
+                  targetStep.trigger_value = String(fromId);
+                  await saveStepObject(targetStep);
+                  return renderFunnelViews();
+                }
+              }
+              if (targetStepId !== Number(sourceKey)) {
+                const step = allSteps.find(x => x.id === Number(sourceKey));
+                step.parsedButtons[btnIdx].type = 'step';
+                step.parsedButtons[btnIdx].value = String(targetStepId);
+                await saveStepObject(step);
+                return renderFunnelViews();
+              }
+            }
+          }
+          drawBoardConnections();
+        }
+      );
+    }
+
+    async function disconnectStartDefault() {
+      if (!confirm("Отвязать стартовый шаг по умолчанию?")) return;
+      const defStep = getDefaultStartStep();
+      boardMeta.default_step_id = null;
+      await saveBoardMeta();
+      if (defStep && defStep.trigger_type === 'start_default') {
+        defStep.trigger_type = 'button';
+        await saveStepObject(defStep);
+      }
+      renderFunnelViews();
+    }
+
+    async function disconnectStartUtm(slug) {
+      if (!confirm(`Отвязать UTM-ветку «${slug}»?`)) return;
+      if (boardMeta.utm_links) delete boardMeta.utm_links[slug];
+      await saveBoardMeta();
+      const linked = allSteps.find(s => s.trigger_type === 'start_source' && s.trigger_value === slug);
+      if (linked) {
+        linked.trigger_type = 'button';
+        linked.trigger_value = '';
+        await saveStepObject(linked);
+      }
+      renderFunnelViews();
+    }
+
+    async function disconnectFallback(sourceStepId) {
+      if (!confirm("Удалить связь дожима «Если не нажал»?")) return;
+      const srcStep = allSteps.find(x => Number(x.id) === Number(sourceStepId));
+      if (!srcStep) return;
+      const fbCfg = parseFallbackCfg(srcStep);
+      if (fbCfg && fbCfg.is_legacy) {
+        const legacyT = allSteps.find(x => Number(x.id) === Number(fbCfg.target_id));
+        if (legacyT) { legacyT.trigger_type = 'button'; legacyT.trigger_value = ''; await saveStepObject(legacyT); }
+      }
+      srcStep.fallback_cfg = '';
+      await saveStepObject(srcStep);
+      renderFunnelViews();
+    }
+
+    async function disconnectTrigger(stepId) {
+      if (!confirm("Удалить эту связь?")) return;
+      const step = allSteps.find(x => x.id === stepId);
+      if (step) {
+        step.trigger_type = 'button';
+        step.trigger_value = '';
+        await saveStepObject(step);
+        renderFunnelViews();
+      }
+    }
+
+    async function disconnectButton(stepId, btnIdx) {
+      if (!confirm("Удалить эту связь?")) return;
+      const step = allSteps.find(x => x.id === stepId);
+      step.parsedButtons[btnIdx].value = "";
+      await saveStepObject(step);
+      renderFunnelViews();
+    }
+
+    function saveStepObject(step) {
+      return apiFetch("/api/funnel", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...step, buttons: step.parsedButtons })
+      });
+    }
+
+    function initBoardPanning() {
+      const view = $('funnel-board-view');
+      const world = $('board-world');
+      let panning = false, sx = 0, sy = 0, pinchStartDist = 0, pinchStartScale = 1;
+
+      view.addEventListener('mousedown', e => {
+        if (e.target !== view && e.target !== world && e.target.id !== 'board-svg') return;
+        panning = true;
+        sx = e.clientX - boardOffset.x;
+        sy = e.clientY - boardOffset.y;
+      });
+      window.addEventListener('mousemove', e => {
+        if (!panning) return;
+        boardOffset.x = Math.min(0, e.clientX - sx);
+        boardOffset.y = Math.min(0, e.clientY - sy);
+        applyBoardTransform();
+      });
+      window.addEventListener('mouseup', () => { panning = false; });
+
+      view.addEventListener('touchstart', e => {
+        if (e.touches.length === 2) {
+          panning = false;
+          pinchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          pinchStartScale = boardScale;
+          return;
+        }
+        if ((e.target === view || e.target === world || e.target.id === 'board-svg') && e.touches.length === 1) {
+          panning = true;
+          sx = e.touches[0].clientX - boardOffset.x;
+          sy = e.touches[0].clientY - boardOffset.y;
+        }
+      }, { passive: true });
+
+      view.addEventListener('touchmove', e => {
+        if (e.touches.length === 2 && pinchStartDist > 0) {
+          if (e.cancelable) e.preventDefault();
+          const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          boardScale = Math.min(1.4, Math.max(0.4, +(pinchStartScale * (dist / pinchStartDist)).toFixed(2)));
+          $('zoom-label').innerText = Math.round(boardScale * 100) + '%';
+          applyBoardTransform();
+          drawBoardConnections();
+          return;
+        }
+        if (!panning || e.touches.length !== 1) return;
+        if (e.cancelable) e.preventDefault();
+        boardOffset.x = Math.min(0, e.touches[0].clientX - sx);
+        boardOffset.y = Math.min(0, e.touches[0].clientY - sy);
+        applyBoardTransform();
+      }, { passive: false });
+
+      view.addEventListener('touchend', () => { panning = false; pinchStartDist = 0; });
+    }
+
+    function changeBoardZoom(delta) {
+      boardScale = Math.min(1.4, Math.max(0.4, +(boardScale + delta).toFixed(1)));
+      $('zoom-label').innerText = Math.round(boardScale * 100) + '%';
+      applyBoardTransform();
+      drawBoardConnections();
+    }
+
+    function applyBoardTransform() {
+      $('board-world').style.transform = `translate(${boardOffset.x}px, ${boardOffset.y}px) scale(${boardScale})`;
+    }
+
+    // --- РЕДАКТОР ШАГА ВОРОНКИ ---
+    function toggleAdvancedStepTrigger(forceState = null) {
+      const box = $('ed-advanced-box');
+      const shouldShow = forceState !== null ? forceState : box.classList.contains('hidden');
+      box.classList.toggle('hidden', !shouldShow);
+      $('ed-adv-arrow').innerText = shouldShow ? '▲' : '▼';
+    }
+
+    function populateFromButtonOptions(preselectedStepId = null, preselectedBtnIdx = null) {
+      const btnSel = $('ed-frombtn-idx');
+      const srcStep = allSteps.find(s => String(s.id) === String(preselectedStepId || $('ed-frombtn-step').value));
+      if (!srcStep || !Array.isArray(srcStep.parsedButtons)) {
+        btnSel.innerHTML = '<option value="">-- В этом шаге нет кнопок --</option>';
+        return;
+      }
+      const stepBtns = srcStep.parsedButtons.map((b, idx) => ({ b, idx })).filter(item => item.b.type === 'step');
+      btnSel.innerHTML = stepBtns.length === 0
+        ? '<option value="">-- Нет кнопок перехода --</option>'
+        : stepBtns.map(({ b, idx }) => `
+          <option value="${idx}" ${preselectedBtnIdx !== null && Number(preselectedBtnIdx) === idx ? 'selected' : ''}>
+            Кнопка: «${escapeHtml(b.text)}» ${b.value ? `(сейчас → #${getStepDisplayNum(b.value)})` : '(свободна)'}
+          </option>
+        `).join('');
+    }
+
+    function openStepEditorFromButton(sourceStepId, btnIdx) {
+      openStepEditor(null, 'from_button', { sourceStepId, btnIdx });
+    }
+
+    function openStepEditorForFallback(sourceStepId) {
+      openStepEditor(null, 'not_clicked', { sourceStepId });
+    }
+
+    function openStepEditor(stepId, defaultTrigger = 'button', preset = null) {
+      const step = stepId ? allSteps.find(x => x.id === stepId) : null;
+      const dispNum = step ? getStepDisplayNum(step.id) : allSteps.length + 1;
+      $('step-editor-title').innerText = step ? `Редактировать шаг #${dispNum}` : `Новый шаг воронки (#${dispNum})`;
+      $('ed-id').value = step ? step.id : '';
+      $('ed-test-btn').classList.toggle('hidden', !step);
+
+      let trigType = step ? step.trigger_type : defaultTrigger;
+      let preFromStepId = preset?.sourceStepId || '';
+      let preFromBtnIdx = preset?.btnIdx ?? null;
+      let preNotClickedStepId = preset?.sourceStepId || '';
+      let preDays = step ? step.delay_days : 0;
+      let preHours = step ? step.delay_hours : 0;
+      let preMins = step ? step.delay_minutes : 0;
+
+      if (step && trigType === 'button') {
+        const inFb = findInboundFallbackSource(step.id);
+        if (inFb) {
+          trigType = 'not_clicked';
+          preNotClickedStepId = inFb.step.id;
+          preDays = inFb.fb.days ?? 1;
+          preHours = inFb.fb.hours ?? 0;
+          preMins = inFb.fb.minutes ?? 0;
+        } else {
+          const inBtn = findInboundButtonSource(step.id);
+          if (inBtn) {
+            trigType = 'from_button';
+            preFromStepId = inBtn.step.id;
+            preFromBtnIdx = inBtn.btnIdx;
+          }
+        }
+      }
+
+      toggleAdvancedStepTrigger(trigType !== 'button' || funnelViewMode === 'list');
+      $('ed-title').value = step ? step.title : '';
+      $('ed-trigger-type').value = trigType;
+      $('ed-trigger-value').value = step ? (step.trigger_value || '') : '';
+      $('ed-rel-days').value = trigType === 'not_clicked' && !step ? 1 : preDays;
+      $('ed-rel-hours').value = preHours;
+      $('ed-rel-mins').value = preMins;
+      $('ed-msk-days').value = step ? step.delay_days : 1;
+      $('ed-msk-time').value = step ? (step.msk_time || '19:00') : '19:00';
+      $('ed-text').value = step ? (step.text || '') : '';
+      $('ed-require-sub').checked = step ? Boolean(step.require_sub) : false;
+      $('ed-delete-prev').checked = step ? Boolean(step.delete_prev) : false;
+
+      let afterMode = 'instant';
+      if (step && step.trigger_type === 'after_step') {
+        if (step.msk_time) afterMode = 'msk';
+        else if ((Number(step.delay_days) || 0) > 0 || (Number(step.delay_hours) || 0) > 0 || (Number(step.delay_minutes) || 0) > 0) afterMode = 'delay';
+      }
+      $('ed-after-mode').value = afterMode;
+
+      const otherSteps = allSteps.filter(s => !step || s.id !== step.id);
+      $('ed-afterstep-id').innerHTML = otherSteps.map(s => `<option value="${s.id}" ${step && String(step.trigger_value) === String(s.id) ? 'selected' : ''}>Шаг #${getStepDisplayNum(s.id)}: ${escapeHtml(s.title)}</option>`).join('');
+
+      const stepsWithButtons = otherSteps.filter(s => s.parsedButtons.some(b => b.type === 'step'));
+      $('ed-frombtn-step').innerHTML = stepsWithButtons.length > 0
+        ? stepsWithButtons.map(s => `<option value="${s.id}" ${String(preFromStepId) === String(s.id) ? 'selected' : ''}>Шаг #${getStepDisplayNum(s.id)}: ${escapeHtml(s.title)}</option>`).join('')
+        : '<option value="">-- Нет шагов с кнопками --</option>';
+      populateFromButtonOptions(preFromStepId || (stepsWithButtons[0]?.id || ''), preFromBtnIdx);
+
+      const allBtnSteps = otherSteps.filter(s => s.parsedButtons.length > 0);
+      $('ed-notclicked-step').innerHTML = allBtnSteps.length > 0
+        ? allBtnSteps.map(s => `<option value="${s.id}" ${String(preNotClickedStepId) === String(s.id) ? 'selected' : ''}>Шаг #${getStepDisplayNum(s.id)}: ${escapeHtml(s.title)}</option>`).join('')
+        : '<option value="">-- Нет шагов с кнопками --</option>';
+
+      $('ed-attachments-list').innerHTML = '';
+      if (step && step.parsedAttachments.length > 0) step.parsedAttachments.forEach(a => addAttachmentRow('ed-attachments-list', a));
+      $('ed-buttons-list').innerHTML = '';
+      if (step && step.parsedButtons.length > 0) step.parsedButtons.forEach(b => addButtonRow('ed-buttons-list', b));
+
+      toggleEditorTriggerUI();
+      openModal('step-editor-modal');
+    }
+
+    function toggleEditorTriggerUI() {
+      const t = $('ed-trigger-type').value;
+      const afterMode = $('ed-after-mode').value;
+      $('ed-frombtn-box').classList.toggle('hidden', t !== 'from_button');
+      $('ed-notclicked-box').classList.toggle('hidden', t !== 'not_clicked');
+      $('ed-afterstep-box').classList.toggle('hidden', t !== 'after_step');
+      $('ed-source-box').classList.toggle('hidden', t !== 'start_source');
+
+      const showRel = (t === 'relative') || (t === 'not_clicked') || (t === 'after_step' && afterMode === 'delay');
+      $('ed-relative-box').classList.toggle('hidden', !showRel);
+      $('ed-relative-box').classList.toggle('grid', showRel);
+
+      const showMsk = (t === 'msk_time') || (t === 'after_step' && afterMode === 'msk');
+      $('ed-msk-box').classList.toggle('hidden', !showMsk);
+      $('ed-msk-box').classList.toggle('grid', showMsk);
+    }
+
+    async function saveStepEditor() {
+      const id = $('ed-id').value;
+      const rawTriggerType = $('ed-trigger-type').value;
+      const afterMode = $('ed-after-mode').value;
+      const attachments = collectAttachmentsFromContainer('ed-attachments-list');
+      const buttons = collectButtonsFromContainer('ed-buttons-list');
+      const dbTriggerType = (rawTriggerType === 'from_button' || rawTriggerType === 'not_clicked') ? 'button' : rawTriggerType;
+
+      if (dbTriggerType === 'start_default') {
+        for (const s of allSteps) {
+          if (s.trigger_type === 'start_default' && String(s.id) !== String(id)) {
+            s.trigger_type = 'button';
+            await saveStepObject(s);
+          }
+        }
+      }
+
+      let triggerValue = "";
+      if (dbTriggerType === 'start_source') triggerValue = $('ed-trigger-value').value.trim();
+      if (dbTriggerType === 'after_step') triggerValue = $('ed-afterstep-id').value;
+
+      let delayDays = 0, delayHours = 0, delayMinutes = 0, mskTime = "";
+      if (dbTriggerType === 'relative' || (dbTriggerType === 'after_step' && afterMode === 'delay')) {
+        delayDays = Number($('ed-rel-days').value) || 0;
+        delayHours = Number($('ed-rel-hours').value) || 0;
+        delayMinutes = Number($('ed-rel-mins').value) || 0;
+      } else if (dbTriggerType === 'msk_time' || (dbTriggerType === 'after_step' && afterMode === 'msk')) {
+        delayDays = Number($('ed-msk-days').value) || 0;
+        mskTime = $('ed-msk-time').value || "19:00";
+      }
+
+      let mediaType = null, fileId = null;
+      if (attachments.length === 1) {
+        mediaType = attachments[0].type;
+        fileId = attachments[0].file_id;
+      } else if (attachments.length > 1) {
+        mediaType = 'multi';
+        fileId = JSON.stringify(attachments);
+      }
+
+      const existing = id ? allSteps.find(x => String(x.id) === String(id)) : null;
+      if (existing && Array.isArray(existing.parsedButtons)) {
+        buttons.forEach((b, idx) => {
+          if (existing.parsedButtons[idx] && existing.parsedButtons[idx].clicks) b.clicks = existing.parsedButtons[idx].clicks;
+        });
+      }
+
+      const payload = {
+        id: id ? Number(id) : null,
+        title: $('ed-title').value.trim() || 'Шаг воронки',
+        trigger_type: dbTriggerType,
+        trigger_value: triggerValue,
+        delay_days: delayDays,
+        delay_hours: delayHours,
+        delay_minutes: delayMinutes,
+        msk_time: mskTime,
+        media_type: mediaType,
+        file_id: fileId,
+        text: $('ed-text').value.trim(),
+        require_sub: $('ed-require-sub').checked,
+        delete_prev: $('ed-delete-prev').checked,
+        fallback_cfg: existing ? (existing.fallback_cfg || '') : '',
+        buttons,
+        pos_x: existing ? existing.pos_x : 380 + (allSteps.length % 3) * 320,
+        pos_y: existing ? existing.pos_y : 80 + Math.floor(allSteps.length / 3) * 240
+      };
+      if (!payload.text && attachments.length === 0) return alert("Заполните текст или добавьте хотя бы один файл!");
+
+      const resData = await (await apiFetch("/api/funnel", {
+        method: id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })).json();
+      const savedStepId = id ? Number(id) : Number(resData.id);
+
+      if (rawTriggerType === 'from_button') {
+        const srcStep = allSteps.find(s => Number(s.id) === Number($('ed-frombtn-step').value));
+        const btnIdx = Number($('ed-frombtn-idx').value);
+        if (srcStep && srcStep.parsedButtons[btnIdx]) {
+          srcStep.parsedButtons[btnIdx].type = 'step';
+          srcStep.parsedButtons[btnIdx].value = String(savedStepId);
+          await saveStepObject(srcStep);
+        }
+      }
+      if (rawTriggerType === 'not_clicked') {
+        const srcStep = allSteps.find(s => Number(s.id) === Number($('ed-notclicked-step').value));
+        if (srcStep) {
+          srcStep.fallback_cfg = JSON.stringify({
+            target_id: savedStepId,
+            days: Math.max(0, Number($('ed-rel-days').value) || 0),
+            hours: Math.max(0, Number($('ed-rel-hours').value) || 0),
+            minutes: Math.max(0, Number($('ed-rel-mins').value) || 0)
+          });
+          await saveStepObject(srcStep);
+        }
+      }
+      if (dbTriggerType === 'start_default') {
+        boardMeta.default_step_id = savedStepId;
+        await saveBoardMeta();
+      }
+      closeModal('step-editor-modal');
+      await fetchFunnelSteps();
+      renderFunnelViews();
+    }
+
+    async function deleteStep(id) {
+      if (!confirm("Удалить этот шаг?")) return;
+      await apiDelete(`/api/funnel?id=${id}`);
+      await Promise.all([fetchFunnelSteps(), fetchBoardMeta()]);
+      renderFunnelViews();
+    }
+
+    // --- КОНСТРУКТОР КНОПОК ---
+    function addButtonRow(containerId, data = { text: '', type: 'step', value: '', tag: '' }) {
+      const stepOptions = allSteps.map(s => `<option value="${s.id}" ${String(data.value) === String(s.id) ? 'selected' : ''}>Шаг #${getStepDisplayNum(s.id)}: ${escapeHtml(s.title)}</option>`).join('');
+      const row = document.createElement('div');
+      row.className = 'btn-builder-row bg-gray-900 border border-gray-700 p-2 rounded-lg space-y-1.5';
+      row.innerHTML = `
+        <div class="flex flex-wrap sm:flex-nowrap gap-1.5">
+          <input type="text" placeholder="Текст на кнопке..." value="${escapeHtml(data.text || '')}" class="btn-text-inp flex-1 min-w-[130px] bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1.5 text-white">
+          <select onchange="toggleBtnRowType(this)" class="btn-type-inp bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1.5 text-white">
+            <option value="step" ${data.type === 'step' ? 'selected' : ''}>→ Шаг воронки</option>
+            <option value="consult" ${data.type === 'consult' ? 'selected' : ''}>📅 Запись на консультацию</option>
+            <option value="url" ${data.type === 'url' ? 'selected' : ''}>🔗 Ссылка (URL)</option>
+          </select>
+          <button type="button" onclick="this.closest('.btn-builder-row').remove()" class="text-red-400 hover:text-red-300 px-1.5 text-xs">✕</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <select class="btn-step-inp ${data.type !== 'step' ? 'hidden' : ''} bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1.5 text-white">
+            <option value="">-- Связать на доске или выбрать --</option>
+            ${stepOptions}
+          </select>
+          <input type="text" placeholder="https://..." value="${data.type === 'url' ? escapeHtml(data.value || '') : ''}" class="btn-url-inp ${data.type !== 'url' ? 'hidden' : ''} bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1.5 text-white">
+          <div class="btn-consult-hint ${data.type !== 'consult' ? 'hidden' : ''} bg-indigo-950/40 border border-indigo-800/50 text-[11px] text-indigo-300 rounded px-2 py-1.5 flex items-center truncate">📅 Откроет выбор даты и времени</div>
+          <input type="text" placeholder="Тег при клике (необяз.)" value="${escapeHtml(data.tag || '')}" class="btn-tag-inp bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1.5 text-emerald-300">
+        </div>
+      `;
+      $(containerId).appendChild(row);
+    }
+
+    function toggleBtnRowType(sel) {
+      const row = sel.closest('.btn-builder-row');
+      const val = sel.value;
+      row.querySelector('.btn-step-inp').classList.toggle('hidden', val !== 'step');
+      row.querySelector('.btn-url-inp').classList.toggle('hidden', val !== 'url');
+      row.querySelector('.btn-consult-hint').classList.toggle('hidden', val !== 'consult');
+    }
+
+    function collectButtonsFromContainer(containerId) {
+      const res = [];
+      document.querySelectorAll(`#${containerId} .btn-builder-row`).forEach(r => {
+        const text = r.querySelector('.btn-text-inp').value.trim();
+        const type = r.querySelector('.btn-type-inp').value;
+        const value = type === 'url' ? r.querySelector('.btn-url-inp').value.trim() : (type === 'step' ? r.querySelector('.btn-step-inp').value : '');
+        const tag = r.querySelector('.btn-tag-inp').value.trim();
+        if (text) res.push({ text, type, value, tag });
+      });
+      return res;
+    }
+
+    // --- РАССЫЛКА ---
+    async function openBroadcastModal() {
+      await fetchFunnelSteps();
+      const tagSet = new Set();
+      allUsers.forEach(u => { try { JSON.parse(u.tags || "[]").forEach(t => tagSet.add(t)); } catch (e) {} });
+      $('bc-tag-select').innerHTML = tagSet.size === 0
+        ? '<option value="">Пока нет присвоенных тегов</option>'
+        : Array.from(tagSet).map(t => `<option value="${escapeHtml(t)}">#${escapeHtml(t)}</option>`).join('');
+      $('bc-users-checkboxes').innerHTML = allUsers.filter(u => !u.banned).map(u => `
+        <label class="bc-user-row flex items-center gap-2 p-1.5 hover:bg-gray-700/50 rounded cursor-pointer" data-search="${escapeHtml((u.first_name + ' ' + u.username).toLowerCase())}">
+          <input type="checkbox" value="${u.chat_id}" class="bc-user-cb rounded bg-gray-700 border-gray-600 text-indigo-600">
+          <span>${escapeHtml(u.first_name)} <span class="text-xs text-gray-400">${u.username ? '(@' + escapeHtml(u.username) + ')' : ''}</span></span>
+        </label>
+      `).join('');
+      $('bc-attachments-list').innerHTML = '';
+      $('bc-buttons-list').innerHTML = '';
+      openModal('broadcast-modal');
+    }
+
+    function toggleBcTargetUI() {
+      const mode = $('bc-target').value;
+      $('bc-tag-box').classList.toggle('hidden', mode !== 'tag');
+      $('bc-manual-box').classList.toggle('hidden', mode !== 'manual');
+    }
+
+    function filterBroadcastUsers() {
+      const q = $('bc-search').value.toLowerCase();
+      document.querySelectorAll('.bc-user-row').forEach(row => row.classList.toggle('hidden', !row.getAttribute('data-search').includes(q)));
+    }
+
+    function toggleAllBcCheckboxes(state) {
+      document.querySelectorAll('.bc-user-row:not(.hidden) .bc-user-cb').forEach(cb => cb.checked = state);
+    }
+
+    async function sendBroadcast() {
+      const mode = $('bc-target').value;
+      const targetTag = $('bc-tag-select').value;
+      const text = $('bc-text').value.trim();
+      const attachments = collectAttachmentsFromContainer('bc-attachments-list');
+      const buttons = collectButtonsFromContainer('bc-buttons-list');
+      if (!text && attachments.length === 0) return alert("Введите текст или добавьте файл!");
+
+      let userIds = [];
+      if (mode === 'manual') {
+        userIds = Array.from(document.querySelectorAll('.bc-user-cb:checked')).map(cb => Number(cb.value));
+        if (userIds.length === 0) return alert("Выберите хотя бы одного получателя!");
+      }
+      if (mode === 'tag' && !targetTag) return alert("Нет выбранного тега!");
+      if (!confirm("Запустить рассылку?")) return;
+
+      const data = await (await apiPost("/api/broadcast", {
+        target_mode: mode, target_tag: targetTag, user_ids: userIds, text, attachments, buttons
+      })).json();
+      closeModal('broadcast-modal');
+      alert(`Рассылка запущена в фоне на сервере (получателей: ${data.count})!`);
+    }
+
+    // --- ГЕНЕРАТОР UTM-ССЫЛОК И ПОДПИСКА ---
+    function openDeeplinkModal() {
+      $('dl-slug').value = 'youtube';
+      updateDeeplinkPreview();
+      openModal('deeplink-modal');
+    }
+
+    function updateDeeplinkPreview() {
+      const slug = $('dl-slug').value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+      const name = botUsername || 'YOUR_BOT';
+      $('dl-result').value = slug ? `https://t.me/${name}?start=${slug}` : `https://t.me/${name}`;
+    }
+
+    async function copyAndSaveDeeplink() {
+      const slug = $('dl-slug').value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+      const inp = $('dl-result');
+      inp.select();
+      navigator.clipboard.writeText(inp.value);
+      if (slug && !boardMeta.utm_slugs.includes(slug)) {
+        boardMeta.utm_slugs.push(slug);
+        await saveBoardMeta();
+      }
+      alert("Ссылка скопирована! Метка также добавлена на стартовый блок доски.");
+    }
+
+    async function openChannelModal() {
+      $('ch-status-banner').classList.add('hidden');
+      const cfg = await (await apiFetch("/api/channel")).json();
+      $('ch-id').value = cfg.channel_id || '';
+      $('ch-url').value = cfg.channel_url || '';
+      $('ch-text').value = cfg.sub_text || '';
+      $('ch-accept-files').checked = cfg.accept_channel_files !== false;
+
+      knownChannelsList = Array.isArray(cfg.known_channels) ? cfg.known_channels : [];
+      const wrap = $('ch-known-wrap');
+      if (knownChannelsList.length > 0) {
+        wrap.classList.remove('hidden');
+        $('ch-known-select').innerHTML = `<option value="">-- Выберите канал из списка --</option>` +
+          knownChannelsList.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.title)} (${escapeHtml(c.username || c.id)})</option>`).join('');
+      } else {
+        wrap.classList.add('hidden');
+      }
+      openModal('channel-modal');
+    }
+
+    function applyKnownChannel(selectedId) {
+      if (!selectedId) return;
+      $('ch-id').value = selectedId;
+      const found = knownChannelsList.find(c => String(c.id) === String(selectedId));
+      if (found && found.username) $('ch-url').value = `https://t.me/${found.username.replace('@', '')}`;
+    }
+
+    async function saveChannel() {
+      const btn = $('save-ch-btn');
+      const statusBox = $('ch-status-banner');
+      btn.disabled = true;
+      btn.innerText = "Проверка...";
+      try {
+        const data = await (await apiPost("/api/channel", {
+          channel_id: $('ch-id').value.trim(),
+          channel_url: $('ch-url').value.trim(),
+          sub_text: $('ch-text').value.trim(),
+          accept_channel_files: $('ch-accept-files').checked
+        })).json();
+        if (data.config) $('ch-id').value = data.config.channel_id || '';
+        if (data.check) {
+          statusBox.innerText = data.check.message;
+          statusBox.className = data.check.ok
+            ? "text-xs rounded-xl p-3 border bg-emerald-950/50 border-emerald-700/60 text-emerald-200"
+            : "text-xs rounded-xl p-3 border bg-amber-950/50 border-amber-700/60 text-amber-200";
+          statusBox.classList.remove('hidden');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Сохранить и проверить";
+      }
+    }
+
+    // --- УТИЛИТЫ ---
+    function openModal(id) {
+      $(id).classList.remove('hidden');
+      $(id).classList.add('flex');
+    }
+    function closeModal(id) {
+      $(id).classList.add('hidden');
+      $(id).classList.remove('flex');
+    }
+    function escapeHtml(str) {
+      return !str ? '' : String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag]));
+    }
+
+    boot();
+  </script>
+</body>
+</html>
